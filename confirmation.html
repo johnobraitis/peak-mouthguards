@@ -227,51 +227,77 @@
 </div>
 
 <script>
-// In production, these values come from the backend/Stripe webhook.
-// For now we read from URL params or use demo values.
 const params = new URLSearchParams(window.location.search);
-const orderId   = params.get('order')   || 'PKM-0042';
-const email     = params.get('email')   || 'your email address';
-const option    = params.get('option')  || 'standard';
-const color     = params.get('color')   || 'Clear';
-const payment   = params.get('payment') || 'card';
-const name      = params.get('name')    || '';
-const addr1     = params.get('addr1')   || '';
-const addr2     = params.get('addr2')   || '';
-const city      = params.get('city')    || '';
-const state     = params.get('state')   || '';
-const zip       = params.get('zip')     || '';
+const sessionId  = params.get('session_id');
+const email      = params.get('email')   || '';
+const option     = params.get('option')  || 'standard';
+const color      = params.get('color')   || 'clear';
+const name       = params.get('name')    || '';
+const addr1      = params.get('addr1')   || '';
+const city       = params.get('city')    || '';
+const state      = params.get('state')   || '';
+const zip        = params.get('zip')     || '';
 
-const isLogo    = option === 'logo';
-const basePrice = isLogo ? 120 : 105;
-const total     = (basePrice + 8.95).toFixed(2);
-const optLabel  = isLogo ? 'Custom logo guard' : 'Standard guard';
-const colorStr  = color.charAt(0).toUpperCase() + color.slice(1);
+const isLogo     = option === 'logo';
+const basePrice  = isLogo ? 120 : 105;
+const total      = (basePrice + 8.95).toFixed(2);
+const optLabel   = isLogo ? 'Custom logo guard' : 'Standard guard';
+const colorLabel = color.charAt(0).toUpperCase() + color.slice(1);
 
-document.getElementById('display-order-id').textContent = orderId;
+// Set placeholder values immediately so page isn't blank
 document.getElementById('display-date').textContent = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-document.getElementById('display-option').textContent = `${optLabel} — ${colorStr}`;
-document.getElementById('display-payment').textContent = payment === 'paypal' ? 'PayPal' : 'Card payment';
-document.getElementById('confirm-email').textContent = email !== 'your email address' ? email : 'your email address';
+document.getElementById('display-option').textContent = `${optLabel} — ${colorLabel}`;
+document.getElementById('display-payment').textContent = 'Card payment';
+document.getElementById('confirm-email').textContent = email || 'your email address';
 document.getElementById('line-item-label').textContent = optLabel;
 document.getElementById('line-item-price').textContent = `$${basePrice}.00`;
 document.getElementById('line-total').textContent = `$${total}`;
 
-// Address
 if (name || addr1) {
-  const lines = [name, addr1, addr2, `${city}${city && state ? ', ' : ''}${state} ${zip}`.trim(), 'United States'].filter(Boolean);
+  const lines = [name, addr1, `${city}${city && state ? ', ' : ''}${state} ${zip}`.trim(), 'United States'].filter(Boolean);
   document.getElementById('display-address').innerHTML = lines.join('<br>');
 }
 
-// Tracking links
-document.getElementById('track-link').href = `track.html?order=${orderId}`;
-document.getElementById('next-track-link').href = `track.html?order=${orderId}`;
-
-// Show logo step if applicable
 if (isLogo) {
   document.getElementById('logo-step').style.display = 'flex';
-  document.getElementById('logo-order-id').textContent = orderId;
 }
+
+// Fetch real order number from Supabase via session ID
+async function loadRealOrder() {
+  if (!sessionId) return;
+
+  try {
+    // Give webhook a moment to fire and create the order
+    await new Promise(r => setTimeout(r, 2000));
+
+    const res = await fetch(`/api/orders/by-session?session_id=${sessionId}`);
+    if (!res.ok) {
+      // Retry once more after another 3 seconds
+      await new Promise(r => setTimeout(r, 3000));
+      const retry = await fetch(`/api/orders/by-session?session_id=${sessionId}`);
+      if (!retry.ok) return;
+      const data = await retry.json();
+      applyOrder(data);
+      return;
+    }
+    const data = await res.json();
+    applyOrder(data);
+  } catch (err) {
+    console.error('Could not load order number:', err);
+  }
+}
+
+function applyOrder(data) {
+  const orderId = data.order_number;
+  document.getElementById('display-order-id').textContent = orderId;
+  document.getElementById('track-link').href = `/track.html?order=${orderId}`;
+  document.getElementById('next-track-link').href = `/track.html?order=${orderId}`;
+  if (document.getElementById('logo-order-id')) {
+    document.getElementById('logo-order-id').textContent = orderId;
+  }
+}
+
+loadRealOrder();
 </script>
 </body>
 </html>
