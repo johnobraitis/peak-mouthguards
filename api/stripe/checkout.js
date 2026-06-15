@@ -3,8 +3,8 @@ const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PRICE_IDS = {
-  standard: 'price_1TiT8nlxt6wPsnrz4hC5ymGB',
-  logo:     'price_1TiT9Alxt6wPsnrz8QZfUEQC'
+  standard: 'price_1TiT8nIxt6wPsnrz4hC5ymGB',
+  logo:     'price_1TiT9AIxt6wPsnrz8QZfUEQC'
 };
 
 module.exports = async function handler(req, res) {
