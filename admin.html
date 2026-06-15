@@ -308,35 +308,71 @@
 
 <script>
 const STAGES = [
-  { id: 1, name: 'Kit dispatched',       desc: 'Impression kit packed and shipped to customer',        cls: 's1' },
-  { id: 2, name: 'Kit delivered',         desc: 'Kit received — customer taking their impression',       cls: 's2' },
-  { id: 3, name: 'Impression received',   desc: 'Mold returned and quality-checked in your lab',         cls: 's3' },
-  { id: 4, name: 'In fabrication',        desc: 'Guard being made from customer impression',             cls: 's4' },
-  { id: 5, name: 'Guard shipped',         desc: 'Finished guard dispatched to customer',                 cls: 's5' },
+  { id: 1, name: 'Kit dispatched',     desc: 'Impression kit packed and shipped to customer',   cls: 's1' },
+  { id: 2, name: 'Kit delivered',       desc: 'Kit received — customer taking their impression',  cls: 's2' },
+  { id: 3, name: 'Impression received', desc: 'Mold returned and quality-checked in your lab',    cls: 's3' },
+  { id: 4, name: 'In fabrication',      desc: 'Guard being made from customer impression',        cls: 's4' },
+  { id: 5, name: 'Guard shipped',       desc: 'Finished guard dispatched to customer',            cls: 's5' },
 ];
 
-// Sample orders — in production these come from your backend/database
-let orders = [
-  { id: 'PKM-0041', name: 'Marcus Reyes',    sport: 'Boxing / MMA',  ordered: '2026-06-10', stage: 4, daysInStage: 1 },
-  { id: 'PKM-0040', name: 'Sarah Okafor',    sport: 'Rugby',         ordered: '2026-06-09', stage: 3, daysInStage: 2 },
-  { id: 'PKM-0039', name: 'Tyler Benson',    sport: 'Football',      ordered: '2026-06-08', stage: 3, daysInStage: 3 },
-  { id: 'PKM-0038', name: 'Priya Nair',      sport: 'Hockey',        ordered: '2026-06-07', stage: 2, daysInStage: 1 },
-  { id: 'PKM-0037', name: 'James Kowalski',  sport: 'Lacrosse',      ordered: '2026-06-05', stage: 2, daysInStage: 3 },
-  { id: 'PKM-0036', name: 'Aaliyah Monroe',  sport: 'Basketball',    ordered: '2026-06-04', stage: 5, daysInStage: 2 },
-  { id: 'PKM-0035', name: 'Devon Park',      sport: 'Football',      ordered: '2026-06-03', stage: 1, daysInStage: 4 },
-  { id: 'PKM-0034', name: 'Chloe Dupont',    sport: 'Boxing / MMA',  ordered: '2026-06-01', stage: 5, daysInStage: 5 },
-];
+const ADMIN_SECRET = prompt('Enter admin password:');
+if (!ADMIN_SECRET) { document.body.innerHTML = '<p style="padding:40px;font-family:Arial">Access denied.</p>'; throw new Error('No password'); }
 
+let orders = [];
 let activeFilter = 'all';
 let searchQuery = '';
 let editingOrderId = null;
 let selectedStage = null;
 
+// ── LOAD ORDERS FROM API ──
+async function loadOrders() {
+  document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:#999;">Loading orders...</td></tr>';
+  try {
+    const params = new URLSearchParams();
+    if (activeFilter !== 'all') params.set('stage', activeFilter);
+    if (searchQuery) params.set('search', searchQuery);
+
+    const res = await fetch(`/api/orders/list?${params}`, {
+      headers: { 'x-admin-secret': ADMIN_SECRET }
+    });
+
+    if (res.status === 401) {
+      document.body.innerHTML = '<p style="padding:40px;font-family:Arial;color:red;">Wrong password. Refresh to try again.</p>';
+      return;
+    }
+
+    const data = await res.json();
+    orders = (data.orders || []).map(o => ({
+      id:          o.order_number,
+      name:        `${o.customers.first_name} ${o.customers.last_name}`,
+      email:       o.customers.email,
+      sport:       o.sport || '—',
+      ordered:     o.created_at,
+      stage:       o.stage,
+      daysInStage: o.days_in_stage || 0,
+      option:      o.option,
+      color:       o.color,
+      flagged:     o.impression_flagged,
+      logo:        o.logo_requested,
+      tracking:    o.usps_tracking_number || '',
+      notes:       o.notes || '',
+      address:     `${o.customers.addr_line1}, ${o.customers.city}, ${o.customers.state} ${o.customers.zip}`,
+      phone:       o.customers.phone || '',
+    }));
+
+    renderTable();
+    renderCounts(data.counts || {});
+  } catch (err) {
+    console.error('Load orders error:', err);
+    document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:red;">Failed to load orders. Check your connection.</td></tr>';
+  }
+}
+
 function getFilteredOrders() {
   return orders.filter(o => {
     const stageMatch = activeFilter === 'all' || o.stage === activeFilter;
     const q = searchQuery.toLowerCase();
-    const searchMatch = !q || o.name.toLowerCase().includes(q) || o.id.toLowerCase().includes(q);
+    const searchMatch = !q || o.name.toLowerCase().includes(q) || o.id.toLowerCase().includes(q) || o.email.toLowerCase().includes(q);
     return stageMatch && searchMatch;
   });
 }
@@ -352,9 +388,13 @@ function renderTable() {
     const stage = STAGES[o.stage - 1];
     const urgency = o.daysInStage >= 4 ? 'color:var(--red);font-weight:700;' : '';
     const canAdvance = o.stage < 5;
+    const flagIcon = o.flagged ? ' ⚠️' : '';
     return `<tr>
       <td><span class="order-id">${o.id}</span></td>
-      <td><div class="customer-name">${o.name}</div><div class="customer-sport">${o.sport}</div></td>
+      <td>
+        <div class="customer-name">${o.name}${flagIcon}</div>
+        <div class="customer-sport">${o.sport} · ${o.color} · ${o.option === 'logo' ? 'Logo' : 'Standard'}</div>
+      </td>
       <td style="color:var(--grey-text);font-size:12px;">${formatDate(o.ordered)}</td>
       <td><span class="stage-badge ${stage.cls}"><span class="stage-dot"></span>${stage.name}</span></td>
       <td style="font-size:13px;${urgency}">${o.daysInStage}d ${o.daysInStage >= 4 ? '⚠' : ''}</td>
@@ -366,11 +406,11 @@ function renderTable() {
   }).join('');
 }
 
-function renderCounts() {
+function renderCounts(counts) {
   document.getElementById('count-all').textContent = orders.length;
   [1,2,3,4,5].forEach(s => {
     const el = document.getElementById('count-' + s);
-    if (el) el.textContent = orders.filter(o => o.stage === s).length;
+    if (el) el.textContent = counts[s] || 0;
   });
 }
 
@@ -378,18 +418,18 @@ function setFilter(stage, btn) {
   activeFilter = stage;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  renderTable();
+  loadOrders();
 }
 
 function filterByStage(stage) {
   activeFilter = stage;
   document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
-  renderTable();
+  loadOrders();
 }
 
 function searchOrders(val) {
   searchQuery = val;
-  renderTable();
+  renderTable(); // filter client-side for instant feel
 }
 
 function openModal(orderId) {
@@ -398,6 +438,11 @@ function openModal(orderId) {
   selectedStage = order.stage;
   document.getElementById('modal-order-label').textContent = `${order.id} — ${order.name}`;
   document.getElementById('modal-note').value = '';
+
+  // Show shipping address in modal
+  const noteEl = document.getElementById('modal-note');
+  noteEl.placeholder = `Ship to: ${order.address}${order.tracking ? '\nTracking: ' + order.tracking : ''}`;
+
   const stagesEl = document.getElementById('modal-stages');
   stagesEl.innerHTML = STAGES.map(s => `
     <div class="stage-option ${s.id === order.stage ? 'selected' : ''}" onclick="selectStage(${s.id}, this)">
@@ -405,6 +450,8 @@ function openModal(orderId) {
       <div><div class="stage-option-text"></div><div class="stage-option-desc">${s.desc}</div></div>
     </div>
   `).join('');
+
+  // Show tracking field when advancing to stage 5
   document.getElementById('modal').classList.add('open');
 }
 
@@ -414,16 +461,41 @@ function selectStage(id, el) {
   el.classList.add('selected');
 }
 
-function saveStage() {
+async function saveStage() {
   const order = orders.find(o => o.id === editingOrderId);
-  if (order && selectedStage !== null) {
-    const changed = order.stage !== selectedStage;
-    order.stage = selectedStage;
-    if (changed) order.daysInStage = 0;
+  if (!order || selectedStage === null) return;
+
+  const btn = document.querySelector('.btn-red');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/orders/advance-stage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-secret': ADMIN_SECRET
+      },
+      body: JSON.stringify({
+        order_number: editingOrderId,
+        to_stage:     selectedStage,
+        changed_by:   'admin',
+        note:         document.getElementById('modal-note').value || null
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    closeModal();
+    await loadOrders(); // refresh from server
+
+  } catch (err) {
+    console.error('Save stage error:', err);
+    alert('Failed to update stage. Try again.');
+    btn.textContent = 'Update stage';
+    btn.disabled = false;
   }
-  closeModal();
-  renderTable();
-  renderCounts();
 }
 
 function closeModal() {
@@ -444,9 +516,9 @@ document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Init
-renderTable();
-renderCounts();
+// Init — load real orders
+loadOrders();
+
 </script>
 </body>
 </html>
