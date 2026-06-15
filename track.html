@@ -266,10 +266,7 @@ const STAGES = [
     desc: 'Your kit has arrived. Follow the included instructions to take your impression.',
     currentMsg: 'Your kit should be with you now. Take your impression whenever you\'re ready — the guide inside makes it simple. Once done, drop it in the mail using the pre-paid return envelope.',
     doneMsg: 'Impression sent back',
-    action: {
-      label: 'I\'ve sent my impression back',
-      confirm: 'confirm-impression'
-    }
+    action: { label: 'I\'ve sent my impression back', confirm: 'confirm-impression' }
   },
   {
     id: 3, name: 'Impression received',
@@ -291,39 +288,46 @@ const STAGES = [
   },
 ];
 
-const mockOrders = {
-  'PKM-0041': { name: 'Marcus Reyes',   sport: 'Boxing / MMA', ordered: '2026-06-10', stage: 4 },
-  'PKM-0040': { name: 'Sarah Okafor',   sport: 'Rugby',        ordered: '2026-06-09', stage: 3 },
-  'PKM-0039': { name: 'Tyler Benson',   sport: 'Football',     ordered: '2026-06-08', stage: 3 },
-  'PKM-0038': { name: 'Priya Nair',     sport: 'Hockey',       ordered: '2026-06-07', stage: 2 },
-  'PKM-0037': { name: 'James Kowalski', sport: 'Lacrosse',     ordered: '2026-06-05', stage: 2 },
-  'PKM-0036': { name: 'Aaliyah Monroe', sport: 'Basketball',   ordered: '2026-06-04', stage: 5 },
-  'PKM-0035': { name: 'Devon Park',     sport: 'Football',     ordered: '2026-06-03', stage: 1 },
-  'PKM-0034': { name: 'Chloe Dupont',   sport: 'Boxing / MMA', ordered: '2026-06-01', stage: 5 },
-};
-
 let currentOrderId = null;
+let currentOrderData = null;
 
-function lookupOrder() {
+async function lookupOrder() {
   const input = document.getElementById('order-id-input').value.trim().toUpperCase();
   const errorEl = document.getElementById('lookup-error');
   const resultEl = document.getElementById('order-result');
   errorEl.style.display = 'none';
   resultEl.style.display = 'none';
 
-  const order = mockOrders[input];
-  if (!order) { errorEl.style.display = 'block'; return; }
+  if (!input) return;
 
-  currentOrderId = input;
-  renderOrder(input, order);
-  resultEl.style.display = 'block';
-  resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Show loading state
+  errorEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/orders/${input}`);
+
+    if (res.status === 404) {
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const order = await res.json();
+    currentOrderId = input;
+    currentOrderData = order;
+    renderOrder(input, order);
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    console.error('Lookup error:', err);
+    errorEl.style.display = 'block';
+  }
 }
 
 function renderOrder(id, order) {
   document.getElementById('result-id').textContent = id;
-  document.getElementById('result-name').textContent = order.name + '\'s order';
-  document.getElementById('result-meta').textContent = 'Ordered ' + formatDate(order.ordered) + ' · ' + order.sport;
+  document.getElementById('result-name').textContent = order.customer_name + '\'s order';
+  document.getElementById('result-meta').textContent = 'Ordered ' + formatDate(order.created_at) + (order.sport ? ' · ' + order.sport : '');
   document.getElementById('result-stage-label').textContent = STAGES[order.stage - 1].name;
 
   const canRequestRemake = order.stage >= 3;
@@ -340,7 +344,13 @@ function renderOrder(id, order) {
 
     let actionHtml = '';
     if (current && s.action) {
-      actionHtml = `<button class="stage-action-btn" onclick="showImpressionConfirm()">${s.action.label} →</button>`;
+      actionHtml = `<button class="stage-action-btn" onclick="showImpressionConfirm()">I've sent my impression back →</button>`;
+    }
+
+    // Show USPS tracking on stage 5
+    let trackingHtml = '';
+    if (s.id === 5 && order.usps_tracking_number) {
+      trackingHtml = `<div class="stage-current-callout">USPS Tracking: <a href="https://tools.usps.com/go/TrackConfirmAction?tLabels=${order.usps_tracking_number}" target="_blank" style="color:var(--red);text-decoration:none;">${order.usps_tracking_number}</a></div>`;
     }
 
     return `
@@ -352,32 +362,42 @@ function renderOrder(id, order) {
           <div class="stage-row-name ${nameClass}">${s.name}</div>
           <div class="stage-row-desc ${descClass}">${s.desc}</div>
           ${current ? `<div class="stage-current-callout">${s.currentMsg}</div>` : ''}
+          ${trackingHtml}
           ${actionHtml}
         </div>
       </div>`;
   }).join('');
 
-  // Remake/return link — only show once impression is back (stage 3+)
-  const remakeEl = document.getElementById('remake-section');
-  if (canRequestRemake) {
-    remakeEl.style.display = 'block';
-  } else {
-    remakeEl.style.display = 'none';
+  document.getElementById('remake-section').style.display = canRequestRemake ? 'block' : 'none';
+}
+
+async function confirmImpression() {
+  try {
+    const res = await fetch('/api/orders/advance-stage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_number: currentOrderId,
+        to_stage:     3,
+        changed_by:   'customer',
+        note:         'Customer confirmed impression mailed back'
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      currentOrderData.stage = 3;
+      renderOrder(currentOrderId, currentOrderData);
+      document.getElementById('result-stage-label').textContent = STAGES[2].name;
+    }
+  } catch (err) {
+    console.error('Confirm impression error:', err);
   }
+  closeImpressionModal();
 }
 
 function showImpressionConfirm() {
   document.getElementById('impression-modal').style.display = 'flex';
-}
-
-function confirmImpression() {
-  const order = mockOrders[currentOrderId];
-  if (order && order.stage === 2) {
-    order.stage = 3;
-    renderOrder(currentOrderId, order);
-    document.getElementById('result-stage-label').textContent = STAGES[2].name;
-  }
-  closeImpressionModal();
 }
 
 function closeImpressionModal() {
@@ -406,6 +426,7 @@ document.getElementById('order-id-input').addEventListener('keydown', function(e
   if (e.key === 'Enter') lookupOrder();
 });
 
+// Pre-fill from URL param
 const urlParams = new URLSearchParams(window.location.search);
 const prefilledId = urlParams.get('order');
 if (prefilledId) {

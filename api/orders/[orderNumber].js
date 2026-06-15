@@ -1,15 +1,12 @@
 // api/orders/[orderNumber].js
-// Used by track.html to fetch live order data
-// Public endpoint — returns order + customer name + event history
-
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -21,26 +18,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch order with customer join
     const { data: order, error } = await supabase
       .from('orders')
       .select(`
-        id,
-        order_number,
-        stage,
-        option,
-        color,
-        logo_requested,
-        sport,
-        impression_flagged,
-        usps_tracking_number,
-        stage_updated_at,
-        created_at,
-        customers (
-          first_name,
-          last_name,
-          email
-        )
+        id, order_number, stage, option, color,
+        logo_requested, sport, impression_flagged,
+        usps_tracking_number, stage_updated_at, created_at,
+        customers ( first_name, last_name, email )
       `)
       .eq('order_number', orderNumber.toUpperCase())
       .single();
@@ -49,7 +33,6 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Fetch event history
     const { data: events } = await supabase
       .from('order_events')
       .select('from_stage, to_stage, changed_by, created_at')
@@ -75,4 +58,4 @@ export default async function handler(req, res) {
     console.error('Get order error:', err);
     return res.status(500).json({ error: 'Server error', detail: err.message });
   }
-}
+};
