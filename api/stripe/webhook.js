@@ -1,5 +1,7 @@
+// api/stripe/webhook.js
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { sendConfirmationEmail } = require('../../lib/email.js');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -91,6 +93,25 @@ module.exports = async function handler(req, res) {
       changed_by: 'admin',
       note:       'Order created via Stripe payment'
     });
+
+    // Send confirmation email
+    try {
+      await sendConfirmationEmail({
+        to:           meta.email,
+        first_name:   meta.first_name,
+        order_number: order.order_number,
+        option:       meta.option,
+        color:        meta.color,
+        amount_cents: session.amount_total,
+        addr_line1:   meta.addr_line1,
+        city:         meta.city,
+        state:        meta.state,
+        zip:          meta.zip
+      });
+      console.log(`Confirmation email sent to ${meta.email}`);
+    } catch (emailErr) {
+      console.error('Confirmation email failed:', emailErr.message);
+    }
 
     console.log(`Order ${order.order_number} created for ${meta.email}`);
     return res.status(200).json({ received: true, order_number: order.order_number });
