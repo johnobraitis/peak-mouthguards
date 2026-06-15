@@ -46,7 +46,7 @@ module.exports = async function handler(req, res) {
         city, state, zip,
         country: country || 'US'
       },
-      success_url: `${siteUrl}/confirmation.html?email=${encodeURIComponent(email)}&option=${option}&color=${color}&name=${encodeURIComponent(first_name + ' ' + last_name)}&addr1=${encodeURIComponent(addr_line1)}&city=${encodeURIComponent(city)}&state=${state}&zip=${zip}`,
+      success_url: `${siteUrl}/confirmation.html?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}&option=${option}&color=${color}&name=${encodeURIComponent(first_name + ' ' + last_name)}&addr1=${encodeURIComponent(addr_line1)}&city=${encodeURIComponent(city)}&state=${state}&zip=${zip}`,
       cancel_url: `${siteUrl}/product.html`,
     });
 
