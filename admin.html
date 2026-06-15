@@ -200,6 +200,22 @@
 </head>
 <body>
 
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--black);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#111;padding:48px 40px;width:100%;max-width:380px;">
+    <div style="font-size:18px;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:var(--white);margin-bottom:32px;">PEAK<span style="color:var(--red);">.</span> Admin</div>
+    <form onsubmit="submitLogin(event)">
+      <div style="margin-bottom:16px;">
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#555;display:block;margin-bottom:8px;">Password</label>
+        <input id="login-password" type="password" placeholder="Enter admin password" autofocus
+          style="width:100%;padding:13px 16px;font-size:14px;font-family:var(--font);background:#1a1a1a;border:1.5px solid #2a2a2a;color:var(--white);outline:none;"/>
+      </div>
+      <p id="login-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;">Wrong password. Try again.</p>
+      <button type="submit" style="width:100%;background:var(--red);color:var(--white);font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px;border:none;cursor:pointer;">Sign in →</button>
+    </form>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- SIDEBAR -->
@@ -214,7 +230,8 @@
       <li><a href="#"><span class="sidebar-icon">⚙️</span> Settings</a></li>
     </ul>
     <div style="padding: 20px 24px; border-top: 1px solid #1e1e1e;">
-      <p style="font-size:11px;color:#444;letter-spacing:0.1em;">Logged in as<br><span style="color:#888;font-weight:700;">Owner</span></p>
+      <p style="font-size:11px;color:#444;letter-spacing:0.1em;margin-bottom:10px;">Logged in as<br><span style="color:#888;font-weight:700;">Owner</span></p>
+      <button onclick="logout()" style="background:none;border:1px solid #333;color:#555;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 14px;cursor:pointer;width:100%;transition:all 0.15s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#555'">Sign out</button>
     </div>
   </aside>
 
@@ -315,14 +332,40 @@ const STAGES = [
   { id: 5, name: 'Guard shipped',       desc: 'Finished guard dispatched to customer',            cls: 's5' },
 ];
 
-const ADMIN_SECRET = prompt('Enter admin password:');
-if (!ADMIN_SECRET) { document.body.innerHTML = '<p style="padding:40px;font-family:Arial">Access denied.</p>'; throw new Error('No password'); }
-
+let ADMIN_SECRET = sessionStorage.getItem('peak_admin_secret') || '';
 let orders = [];
 let activeFilter = 'all';
 let searchQuery = '';
 let editingOrderId = null;
 let selectedStage = null;
+
+// Show login overlay if no password stored
+function checkAuth() {
+  if (!ADMIN_SECRET) {
+    document.getElementById('login-overlay').style.display = 'flex';
+  } else {
+    document.getElementById('login-overlay').style.display = 'none';
+    loadOrders();
+  }
+}
+
+function submitLogin(e) {
+  if (e) e.preventDefault();
+  const pw = document.getElementById('login-password').value.trim();
+  if (!pw) return;
+  ADMIN_SECRET = pw;
+  sessionStorage.setItem('peak_admin_secret', pw);
+  document.getElementById('login-overlay').style.display = 'none';
+  loadOrders();
+}
+
+function logout() {
+  sessionStorage.removeItem('peak_admin_secret');
+  ADMIN_SECRET = '';
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
 
 // ── LOAD ORDERS FROM API ──
 async function loadOrders() {
@@ -337,7 +380,10 @@ async function loadOrders() {
     });
 
     if (res.status === 401) {
-      document.body.innerHTML = '<p style="padding:40px;font-family:Arial;color:red;">Wrong password. Refresh to try again.</p>';
+      document.getElementById('login-error').style.display = 'block';
+      document.getElementById('login-overlay').style.display = 'flex';
+      sessionStorage.removeItem('peak_admin_secret');
+      ADMIN_SECRET = '';
       return;
     }
 
@@ -516,8 +562,8 @@ document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Init — load real orders
-loadOrders();
+// Init
+checkAuth();
 
 </script>
 </body>
