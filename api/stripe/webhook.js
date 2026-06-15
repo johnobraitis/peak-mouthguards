@@ -1,20 +1,13 @@
-// api/stripe/webhook.js
-// Stripe calls this automatically after a successful payment
-// It creates the order in Supabase and sends the confirmation email
+const Stripe = require('stripe');
+const { createClient } = require('@supabase/supabase-js');
 
-import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
-import { sendConfirmationEmail } from '../lib/email.js';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Required: tell Vercel not to parse the body — Stripe needs the raw bytes to verify signature
-export const config = { api: { bodyParser: false } };
+module.exports.config = { api: { bodyParser: false } };
 
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -25,7 +18,7 @@ async function getRawBody(req) {
   });
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -41,7 +34,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Webhook error: ${err.message}` });
   }
 
-  // Only handle successful payments
   if (event.type !== 'checkout.session.completed') {
     return res.status(200).json({ received: true });
   }
@@ -50,7 +42,6 @@ export default async function handler(req, res) {
   const meta = session.metadata;
 
   try {
-    // 1. Upsert customer
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .upsert(
@@ -73,7 +64,6 @@ export default async function handler(req, res) {
 
     if (customerError) throw customerError;
 
-    // 2. Create order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -94,7 +84,6 @@ export default async function handler(req, res) {
 
     if (orderError) throw orderError;
 
-    // 3. Log initial event
     await supabase.from('order_events').insert({
       order_id:   order.id,
       from_stage: null,
@@ -103,26 +92,11 @@ export default async function handler(req, res) {
       note:       'Order created via Stripe payment'
     });
 
-    // 4. Send confirmation email
-    await sendConfirmationEmail({
-      to:           meta.email,
-      first_name:   meta.first_name,
-      order_number: order.order_number,
-      option:       meta.option,
-      color:        meta.color,
-      amount_cents: session.amount_total,
-      addr_line1:   meta.addr_line1,
-      city:         meta.city,
-      state:        meta.state,
-      zip:          meta.zip
-    });
-
     console.log(`Order ${order.order_number} created for ${meta.email}`);
     return res.status(200).json({ received: true, order_number: order.order_number });
 
   } catch (err) {
     console.error('Webhook processing error:', err);
-    // Still return 200 to Stripe so it doesn't retry — log the error for investigation
     return res.status(200).json({ received: true, error: err.message });
   }
-}
+};

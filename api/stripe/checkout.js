@@ -1,17 +1,13 @@
-// api/stripe/checkout.js
-// Creates a Stripe Checkout session and returns the URL
-// Called when customer clicks "Proceed to payment" on product.html
+const Stripe = require('stripe');
 
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PRICE_IDS = {
   standard: 'price_1TiT8nlxt6wPsnrz4hC5ymGB',
   logo:     'price_1TiT9Alxt6wPsnrz8QZfUEQC'
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -39,16 +35,18 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: email,
       payment_method_types: ['card'],
-
-      // Store all order details in metadata — webhook reads these to create the order
       metadata: {
-        option, color, sport: sport || '', notes: notes || '',
-        first_name, last_name, email, phone: phone || '',
-        addr_line1, addr_line2: addr_line2 || '',
-        city, state, zip, country: country || 'US'
+        option, color,
+        sport: sport || '',
+        notes: notes || '',
+        first_name, last_name, email,
+        phone: phone || '',
+        addr_line1,
+        addr_line2: addr_line2 || '',
+        city, state, zip,
+        country: country || 'US'
       },
-
-      success_url: `${siteUrl}/confirmation.html?order={ORDER_NUMBER}&email=${encodeURIComponent(email)}&option=${option}&color=${color}&name=${encodeURIComponent(first_name + ' ' + last_name)}&addr1=${encodeURIComponent(addr_line1)}&city=${encodeURIComponent(city)}&state=${state}&zip=${zip}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/confirmation.html?email=${encodeURIComponent(email)}&option=${option}&color=${color}&name=${encodeURIComponent(first_name + ' ' + last_name)}&addr1=${encodeURIComponent(addr_line1)}&city=${encodeURIComponent(city)}&state=${state}&zip=${zip}`,
       cancel_url: `${siteUrl}/product.html`,
     });
 
@@ -58,4 +56,4 @@ export default async function handler(req, res) {
     console.error('Stripe checkout error:', err);
     return res.status(500).json({ error: 'Failed to create checkout session', detail: err.message });
   }
-}
+};
