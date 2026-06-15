@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peak — Order Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #D0021B; --red-dark: #A50015; --red-bg: #FFF0F1;
+    --white: #FFFFFF; --grey-light: #F4F4F4; --grey-mid: #C8C8C8;
+    --grey-text: #6B6B6B; --black: #0A0A0A;
+    --stage-1: #E8F4FF; --stage-1-text: #0062B8;
+    --stage-2: #FFF8E0; --stage-2-text: #8A6200;
+    --stage-3: #FFF0E8; --stage-3-text: #B84400;
+    --stage-4: #F0E8FF; --stage-4-text: #6200B8;
+    --stage-5: #E8FFE8; --stage-5-text: #006200;
+    --font: 'Arial', Arial, sans-serif;
+  }
+  body { font-family: var(--font); background: var(--grey-light); color: var(--black); min-height: 100vh; }
+
+  /* SIDEBAR */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px; background: var(--black); flex-shrink: 0;
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; height: 100vh; z-index: 50;
+  }
+  .sidebar-logo {
+    padding: 28px 24px 24px;
+    font-size: 16px; font-weight: 900; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--white); text-decoration: none;
+    border-bottom: 1px solid #1e1e1e; display: block;
+  }
+  .sidebar-logo span { color: var(--red); }
+  .sidebar-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #444; padding: 24px 24px 8px;
+  }
+  .sidebar-nav { list-style: none; flex: 1; }
+  .sidebar-nav li a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 24px; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.05em; color: #888; text-decoration: none;
+    transition: color 0.15s, background 0.15s; border-left: 3px solid transparent;
+  }
+  .sidebar-nav li a:hover { color: var(--white); background: #111; }
+  .sidebar-nav li a.active { color: var(--white); border-left-color: var(--red); background: #111; }
+  .sidebar-icon { font-size: 15px; }
+
+  /* MAIN */
+  .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--white); border-bottom: 1px solid #E8E8E8;
+    padding: 0 36px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topbar-title { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-date { font-size: 12px; color: var(--grey-text); letter-spacing: 0.05em; }
+
+  /* CONTENT */
+  .content { padding: 32px 36px; flex: 1; }
+
+  /* SUMMARY CARDS */
+  .summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 32px; }
+  .summary-card {
+    background: var(--white); padding: 20px 20px 18px;
+    border-top: 3px solid transparent; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .summary-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .summary-card.active { border-top-color: var(--red); }
+  .summary-card-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--grey-text); margin-bottom: 10px;
+  }
+  .summary-card-num {
+    font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: var(--black); line-height: 1;
+  }
+  .summary-card-sub { font-size: 11px; color: var(--grey-text); margin-top: 6px; }
+
+  /* FILTER BAR */
+  .filter-bar {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 7px 16px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; border: 1.5px solid var(--grey-mid);
+    background: var(--white); cursor: pointer; color: var(--grey-text);
+    transition: all 0.15s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+  .search-input {
+    margin-left: auto; padding: 8px 16px; font-size: 13px; font-family: var(--font);
+    border: 1.5px solid var(--grey-mid); outline: none; width: 220px;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--black); }
+
+  /* ORDERS TABLE */
+  .orders-table-wrap { background: var(--white); overflow-x: auto; }
+  .orders-table { width: 100%; border-collapse: collapse; }
+  .orders-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--grey-text);
+    padding: 14px 16px; text-align: left;
+    border-bottom: 1px solid #E8E8E8; white-space: nowrap;
+  }
+  .orders-table td {
+    padding: 14px 16px; font-size: 13px; color: var(--black);
+    border-bottom: 1px solid #F0F0F0; vertical-align: middle;
+  }
+  .orders-table tr:last-child td { border-bottom: none; }
+  .orders-table tr:hover td { background: #FAFAFA; }
+
+  .order-id { font-weight: 700; font-size: 12px; letter-spacing: 0.05em; }
+  .customer-name { font-weight: 700; }
+  .customer-sport { font-size: 11px; color: var(--grey-text); margin-top: 2px; }
+
+  /* STAGE BADGE */
+  .stage-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  }
+  .stage-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .s1 { background: var(--stage-1); color: var(--stage-1-text); }
+  .s1 .stage-dot { background: var(--stage-1-text); }
+  .s2 { background: var(--stage-2); color: var(--stage-2-text); }
+  .s2 .stage-dot { background: var(--stage-2-text); }
+  .s3 { background: var(--stage-3); color: var(--stage-3-text); }
+  .s3 .stage-dot { background: var(--stage-3-text); }
+  .s4 { background: var(--stage-4); color: var(--stage-4-text); }
+  .s4 .stage-dot { background: var(--stage-4-text); }
+  .s5 { background: var(--stage-5); color: var(--stage-5-text); }
+  .s5 .stage-dot { background: var(--stage-5-text); }
+
+  /* ACTIONS */
+  .action-btn {
+    padding: 5px 12px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; border: 1.5px solid var(--grey-mid);
+    background: var(--white); cursor: pointer; color: var(--black);
+    transition: all 0.15s; margin-right: 4px; white-space: nowrap;
+  }
+  .action-btn:hover { background: var(--black); color: var(--white); border-color: var(--black); }
+  .action-btn.advance { background: var(--red); color: var(--white); border-color: var(--red); }
+  .action-btn.advance:hover { background: var(--red-dark); border-color: var(--red-dark); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 200; display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); width: 100%; max-width: 560px;
+    margin: 24px; padding: 40px; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none; font-size: 20px; cursor: pointer; color: var(--grey-text);
+  }
+  .modal-title { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: var(--grey-text); margin-bottom: 28px; }
+  .modal-stage-select { display: flex; flex-direction: column; gap: 8px; }
+  .stage-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border: 1.5px solid var(--grey-light); cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .stage-option:hover { border-color: var(--black); }
+  .stage-option.selected { border-color: var(--red); }
+  .stage-option-text { font-size: 13px; font-weight: 700; }
+  .stage-option-desc { font-size: 12px; color: var(--grey-text); margin-top: 2px; }
+  .modal-note-label { font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 20px 0 8px; }
+  .modal-note { width: 100%; padding: 10px 14px; font-size: 13px; font-family: var(--font); border: 1.5px solid var(--grey-mid); resize: vertical; min-height: 80px; outline: none; }
+  .modal-note:focus { border-color: var(--black); }
+  .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+  .btn-red { background: var(--red); color: var(--white); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 28px; border: none; cursor: pointer; transition: background 0.15s; }
+  .btn-red:hover { background: var(--red-dark); }
+  .btn-ghost { background: none; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 24px; border: 1.5px solid var(--grey-mid); cursor: pointer; color: var(--grey-text); transition: all 0.15s; }
+  .btn-ghost:hover { border-color: var(--black); color: var(--black); }
+
+  /* EMPTY */
+  .empty-row td { text-align: center; padding: 60px; color: var(--grey-text); font-size: 14px; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .summary-row { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 24px 16px; }
+    .topbar { padding: 0 20px; }
+    .filter-bar .search-input { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <a href="index.html" class="sidebar-logo">PEAK<span>.</span></a>
+    <p class="sidebar-label">Admin</p>
+    <ul class="sidebar-nav">
+      <li><a href="admin.html" class="active"><span class="sidebar-icon">📋</span> Orders</a></li>
+      <li><a href="#"><span class="sidebar-icon">📦</span> Shipments</a></li>
+      <li><a href="#"><span class="sidebar-icon">🔬</span> Fabrication queue</a></li>
+      <li><a href="#"><span class="sidebar-icon">📊</span> Analytics</a></li>
+      <li><a href="#"><span class="sidebar-icon">⚙️</span> Settings</a></li>
+    </ul>
+    <div style="padding: 20px 24px; border-top: 1px solid #1e1e1e;">
+      <p style="font-size:11px;color:#444;letter-spacing:0.1em;">Logged in as<br><span style="color:#888;font-weight:700;">Owner</span></p>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">Orders</span>
+      <div class="topbar-right">
+        <span class="topbar-date" id="today-date"></span>
+        <a href="product.html" style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--red);text-decoration:none;">↗ View store</a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- SUMMARY CARDS -->
+      <div class="summary-row">
+        <div class="summary-card active" onclick="filterByStage('all')">
+          <div class="summary-card-label">All orders</div>
+          <div class="summary-card-num" id="count-all">0</div>
+          <div class="summary-card-sub">total</div>
+        </div>
+        <div class="summary-card" onclick="filterByStage(1)">
+          <div class="summary-card-label">Kit dispatched</div>
+          <div class="summary-card-num" id="count-1">0</div>
+          <div class="summary-card-sub">awaiting delivery</div>
+        </div>
+        <div class="summary-card" onclick="filterByStage(2)">
+          <div class="summary-card-label">Kit delivered</div>
+          <div class="summary-card-num" id="count-2">0</div>
+          <div class="summary-card-sub">impression pending</div>
+        </div>
+        <div class="summary-card" onclick="filterByStage(3)">
+          <div class="summary-card-label">Impression in</div>
+          <div class="summary-card-num" id="count-3">0</div>
+          <div class="summary-card-sub">ready to fabricate</div>
+        </div>
+        <div class="summary-card" onclick="filterByStage(4)">
+          <div class="summary-card-label">In fabrication</div>
+          <div class="summary-card-num" id="count-4">0</div>
+          <div class="summary-card-sub">being made</div>
+        </div>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setFilter(1, this)">Kit dispatched</button>
+        <button class="filter-btn" onclick="setFilter(2, this)">Kit delivered</button>
+        <button class="filter-btn" onclick="setFilter(3, this)">Impression received</button>
+        <button class="filter-btn" onclick="setFilter(4, this)">In fabrication</button>
+        <button class="filter-btn" onclick="setFilter(5, this)">Guard shipped</button>
+        <input class="search-input" type="text" placeholder="Search name or order ID…" oninput="searchOrders(this.value)">
+      </div>
+
+      <!-- TABLE -->
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Ordered</th>
+              <th>Stage</th>
+              <th>Days in stage</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STAGE UPDATE MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 class="modal-title">Update order stage</h2>
+    <p class="modal-sub" id="modal-order-label">Order #PKM-0000 — Customer Name</p>
+    <div class="modal-stage-select" id="modal-stages"></div>
+    <p class="modal-note-label">Internal note (optional)</p>
+    <textarea class="modal-note" id="modal-note" placeholder="e.g. Impression quality checked — looks good"></textarea>
+    <div class="modal-actions">
+      <button class="btn-red" onclick="saveStage()">Update stage</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STAGES = [
+  { id: 1, name: 'Kit dispatched',       desc: 'Impression kit packed and shipped to customer',        cls: 's1' },
+  { id: 2, name: 'Kit delivered',         desc: 'Kit received — customer taking their impression',       cls: 's2' },
+  { id: 3, name: 'Impression received',   desc: 'Mold returned and quality-checked in your lab',         cls: 's3' },
+  { id: 4, name: 'In fabrication',        desc: 'Guard being made from customer impression',             cls: 's4' },
+  { id: 5, name: 'Guard shipped',         desc: 'Finished guard dispatched to customer',                 cls: 's5' },
+];
+
+// Sample orders — in production these come from your backend/database
+let orders = [
+  { id: 'PKM-0041', name: 'Marcus Reyes',    sport: 'Boxing / MMA',  ordered: '2026-06-10', stage: 4, daysInStage: 1 },
+  { id: 'PKM-0040', name: 'Sarah Okafor',    sport: 'Rugby',         ordered: '2026-06-09', stage: 3, daysInStage: 2 },
+  { id: 'PKM-0039', name: 'Tyler Benson',    sport: 'Football',      ordered: '2026-06-08', stage: 3, daysInStage: 3 },
+  { id: 'PKM-0038', name: 'Priya Nair',      sport: 'Hockey',        ordered: '2026-06-07', stage: 2, daysInStage: 1 },
+  { id: 'PKM-0037', name: 'James Kowalski',  sport: 'Lacrosse',      ordered: '2026-06-05', stage: 2, daysInStage: 3 },
+  { id: 'PKM-0036', name: 'Aaliyah Monroe',  sport: 'Basketball',    ordered: '2026-06-04', stage: 5, daysInStage: 2 },
+  { id: 'PKM-0035', name: 'Devon Park',      sport: 'Football',      ordered: '2026-06-03', stage: 1, daysInStage: 4 },
+  { id: 'PKM-0034', name: 'Chloe Dupont',    sport: 'Boxing / MMA',  ordered: '2026-06-01', stage: 5, daysInStage: 5 },
+];
+
+let activeFilter = 'all';
+let searchQuery = '';
+let editingOrderId = null;
+let selectedStage = null;
+
+function getFilteredOrders() {
+  return orders.filter(o => {
+    const stageMatch = activeFilter === 'all' || o.stage === activeFilter;
+    const q = searchQuery.toLowerCase();
+    const searchMatch = !q || o.name.toLowerCase().includes(q) || o.id.toLowerCase().includes(q);
+    return stageMatch && searchMatch;
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('orders-tbody');
+  const filtered = getFilteredOrders();
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No orders match this filter.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(o => {
+    const stage = STAGES[o.stage - 1];
+    const urgency = o.daysInStage >= 4 ? 'color:var(--red);font-weight:700;' : '';
+    const canAdvance = o.stage < 5;
+    return `<tr>
+      <td><span class="order-id">${o.id}</span></td>
+      <td><div class="customer-name">${o.name}</div><div class="customer-sport">${o.sport}</div></td>
+      <td style="color:var(--grey-text);font-size:12px;">${formatDate(o.ordered)}</td>
+      <td><span class="stage-badge ${stage.cls}"><span class="stage-dot"></span>${stage.name}</span></td>
+      <td style="font-size:13px;${urgency}">${o.daysInStage}d ${o.daysInStage >= 4 ? '⚠' : ''}</td>
+      <td>
+        ${canAdvance ? `<button class="action-btn advance" onclick="openModal('${o.id}')">Advance →</button>` : ''}
+        <button class="action-btn" onclick="openModal('${o.id}')">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCounts() {
+  document.getElementById('count-all').textContent = orders.length;
+  [1,2,3,4,5].forEach(s => {
+    const el = document.getElementById('count-' + s);
+    if (el) el.textContent = orders.filter(o => o.stage === s).length;
+  });
+}
+
+function setFilter(stage, btn) {
+  activeFilter = stage;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderTable();
+}
+
+function filterByStage(stage) {
+  activeFilter = stage;
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+  renderTable();
+}
+
+function searchOrders(val) {
+  searchQuery = val;
+  renderTable();
+}
+
+function openModal(orderId) {
+  editingOrderId = orderId;
+  const order = orders.find(o => o.id === orderId);
+  selectedStage = order.stage;
+  document.getElementById('modal-order-label').textContent = `${order.id} — ${order.name}`;
+  document.getElementById('modal-note').value = '';
+  const stagesEl = document.getElementById('modal-stages');
+  stagesEl.innerHTML = STAGES.map(s => `
+    <div class="stage-option ${s.id === order.stage ? 'selected' : ''}" onclick="selectStage(${s.id}, this)">
+      <span class="stage-badge ${s.cls}" style="pointer-events:none"><span class="stage-dot"></span>${s.name}</span>
+      <div><div class="stage-option-text"></div><div class="stage-option-desc">${s.desc}</div></div>
+    </div>
+  `).join('');
+  document.getElementById('modal').classList.add('open');
+}
+
+function selectStage(id, el) {
+  selectedStage = id;
+  document.querySelectorAll('.stage-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function saveStage() {
+  const order = orders.find(o => o.id === editingOrderId);
+  if (order && selectedStage !== null) {
+    const changed = order.stage !== selectedStage;
+    order.stage = selectedStage;
+    if (changed) order.daysInStage = 0;
+  }
+  closeModal();
+  renderTable();
+  renderCounts();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingOrderId = null;
+  selectedStage = null;
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Set today's date
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Init
+renderTable();
+renderCounts();
+</script>
+</body>
+</html>

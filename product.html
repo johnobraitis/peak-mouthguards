@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order — Peak Mouthguards</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #D0021B; --red-dark: #A50015;
+    --white: #FFFFFF; --grey-light: #F0F0F0;
+    --grey-mid: #C8C8C8; --grey-text: #6B6B6B;
+    --black: #0A0A0A;
+    --font: 'Arial', Arial, sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font); background: var(--white); color: var(--black); overflow-x: hidden; }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px; height: 64px;
+    background: var(--white); border-bottom: 1px solid var(--grey-light);
+  }
+  .nav-logo { font-size: 17px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+  .nav-logo span { color: var(--red); }
+  .nav-links { display: flex; gap: 40px; list-style: none; }
+  .nav-links a { font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--grey-text); text-decoration: none; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--black); }
+  .nav-cta { background: var(--red); color: var(--white) !important; padding: 10px 22px; }
+  .nav-cta:hover { background: var(--red-dark) !important; }
+
+  /* PAGE LAYOUT */
+  .page { padding-top: 64px; }
+
+  /* PRODUCT HERO */
+  .product-hero {
+    display: grid; grid-template-columns: 1fr 1fr;
+    min-height: calc(100vh - 64px);
+  }
+  .product-visual {
+    background: var(--grey-light);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    min-height: 500px;
+  }
+  .product-visual-inner {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+  /* SVG placeholder mouthguard shape */
+  .product-visual svg { width: 320px; height: 220px; }
+  .product-visual-caption {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--grey-text);
+  }
+  .visual-accent {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; background: var(--red);
+  }
+
+  /* PRODUCT INFO */
+  .product-info {
+    padding: 72px 56px;
+    display: flex; flex-direction: column; justify-content: center;
+    max-height: 100vh; overflow-y: auto;
+  }
+  .product-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.25em;
+    text-transform: uppercase; color: var(--red); margin-bottom: 16px;
+  }
+  .product-name {
+    font-size: clamp(32px, 4vw, 52px); font-weight: 900;
+    letter-spacing: -0.02em; text-transform: uppercase;
+    line-height: 0.95; color: var(--black); margin-bottom: 20px;
+  }
+  .product-price {
+    font-size: 36px; font-weight: 900; color: var(--black);
+    letter-spacing: -0.02em; margin-bottom: 8px;
+  }
+  .product-price-note {
+    font-size: 12px; color: var(--grey-text); letter-spacing: 0.05em;
+    margin-bottom: 36px;
+  }
+  .product-desc {
+    font-size: 15px; line-height: 1.75; color: var(--grey-text);
+    margin-bottom: 40px; max-width: 440px;
+  }
+
+  /* PROCESS MINI */
+  .process-mini { margin-bottom: 40px; }
+  .process-mini-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--black); margin-bottom: 20px;
+  }
+  .process-steps { display: flex; flex-direction: column; gap: 0; }
+  .process-step-row {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 14px 0; border-bottom: 1px solid var(--grey-light);
+  }
+  .process-step-row:last-child { border-bottom: none; }
+  .ps-num {
+    font-size: 11px; font-weight: 700; color: var(--red);
+    letter-spacing: 0.15em; min-width: 24px; padding-top: 2px;
+  }
+  .ps-text { font-size: 14px; color: var(--black); line-height: 1.5; }
+  .ps-text strong { font-weight: 700; display: block; margin-bottom: 2px; }
+  .ps-text span { font-size: 13px; color: var(--grey-text); }
+
+  /* ORDER FORM */
+  .order-form { display: flex; flex-direction: column; gap: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--black);
+  }
+  .form-group input, .form-group select {
+    border: 1.5px solid var(--grey-mid);
+    padding: 12px 14px; font-size: 14px; font-family: var(--font);
+    color: var(--black); background: var(--white);
+    outline: none; transition: border-color 0.2s;
+    appearance: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--red); }
+  .form-group.full { grid-column: 1 / -1; }
+
+  .color-options { display: flex; gap: 12px; flex-wrap: wrap; }
+  .color-opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border: 1.5px solid var(--grey-mid);
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .color-opt.selected { border-color: var(--black); }
+  .color-swatch { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .color-label { font-size: 13px; font-weight: 700; color: var(--black); }
+
+  .form-section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--black); margin-bottom: 10px;
+  }
+
+  .option-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .option-card {
+    border: 1.5px solid var(--grey-mid); padding: 16px 18px;
+    cursor: pointer; transition: border-color 0.15s; display: block;
+  }
+  .option-card.selected { border-color: var(--red); }
+  .option-card:hover { border-color: var(--black); }
+  .option-card-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .option-name { font-size: 14px; font-weight: 700; color: var(--black); }
+  .option-price { font-size: 16px; font-weight: 900; color: var(--black); letter-spacing: -0.01em; }
+  .option-card.selected .option-price { color: var(--red); }
+  .option-desc { font-size: 12px; color: var(--grey-text); line-height: 1.5; }
+
+  .order-summary {
+    border-top: 1.5px solid var(--grey-light);
+    border-bottom: 1.5px solid var(--grey-light);
+    padding: 16px 0; margin: 8px 0 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .summary-row-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--black); }
+  .summary-total {
+    display: flex; justify-content: space-between;
+    font-size: 16px; font-weight: 900; color: var(--black);
+    padding-top: 10px; border-top: 1px solid var(--grey-light); margin-top: 4px;
+  }
+
+  .btn-primary {
+    background: var(--red); color: var(--white);
+    font-size: 13px; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 18px 36px;
+    border: none; cursor: pointer; text-decoration: none;
+    display: inline-block; transition: background 0.2s; width: 100%;
+    margin-top: 4px;
+  }
+  .btn-primary:hover { background: var(--red-dark); }
+  .form-note {
+    font-size: 12px; color: var(--grey-text); line-height: 1.6;
+    text-align: center;
+  }
+
+  /* WHAT'S IN THE KIT */
+  .kit-section { padding: 80px 48px; background: var(--grey-light); }
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 12px; }
+  .section-title { font-size: clamp(24px, 3vw, 40px); font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; color: var(--black); line-height: 1.05; margin-bottom: 48px; }
+  .kit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: var(--grey-mid); }
+  .kit-item { background: var(--white); padding: 36px 28px; }
+  .kit-item-icon { font-size: 22px; margin-bottom: 16px; }
+  .kit-item-name { font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: var(--black); margin-bottom: 8px; }
+  .kit-item-desc { font-size: 13px; line-height: 1.6; color: var(--grey-text); }
+
+  /* TRACKING EXPLAINER */
+  .tracking-section { padding: 80px 48px; background: var(--black); }
+  .tracking-section .section-label { color: var(--red); }
+  .tracking-section .section-title { color: var(--white); margin-bottom: 48px; }
+  .track-stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; background: #1a1a1a; }
+  .track-stage { background: var(--black); padding: 32px 24px; position: relative; }
+  .track-stage::after {
+    content: '→'; position: absolute; right: -12px; top: 50%;
+    transform: translateY(-50%); color: var(--red); font-weight: 900;
+    font-size: 16px; z-index: 1;
+  }
+  .track-stage:last-child::after { display: none; }
+  .track-stage-num { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; color: var(--red); margin-bottom: 12px; }
+  .track-stage-name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: var(--white); margin-bottom: 8px; line-height: 1.2; }
+  .track-stage-desc { font-size: 12px; line-height: 1.6; color: #666; }
+
+  /* FOOTER */
+  footer { background: var(--black); padding: 48px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; border-top: 1px solid #1e1e1e; }
+  .footer-logo { font-size: 15px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .footer-logo span { color: var(--red); }
+  .footer-copy { font-size: 12px; color: #555; letter-spacing: 0.05em; }
+  .footer-links { display: flex; gap: 32px; list-style: none; }
+  .footer-links a { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #555; text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--white); }
+
+  @media (max-width: 900px) {
+    .product-hero { grid-template-columns: 1fr; }
+    .product-visual { min-height: 280px; }
+    .product-info { padding: 48px 24px; max-height: none; }
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    .kit-section, .tracking-section { padding: 60px 24px; }
+    .kit-grid { grid-template-columns: 1fr 1fr; }
+    .track-stages { grid-template-columns: 1fr 1fr; }
+    .track-stage::after { display: none; }
+    footer { padding: 36px 24px; flex-direction: column; align-items: flex-start; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 500px) {
+    .kit-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">PEAK<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html#how">How it works</a></li>
+    <li><a href="guide.html">Impression guide</a></li>
+    <li><a href="index.html#why">Why Peak</a></li>
+    <li><a href="product.html" class="nav-cta">Order now</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <!-- PRODUCT HERO -->
+  <section class="product-hero">
+    <div class="product-visual">
+      <div class="visual-accent"></div>
+      <div class="product-visual-inner">
+        <!-- Placeholder mouthguard SVG -->
+        <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="60" width="280" height="90" rx="45" fill="#E8E8E8" stroke="#C8C8C8" stroke-width="2"/>
+          <rect x="40" y="75" width="240" height="60" rx="30" fill="#D0D0D0"/>
+          <rect x="60" y="88" width="200" height="36" rx="18" fill="#BCBCBC"/>
+          <!-- teeth impressions -->
+          <rect x="72" y="95" width="22" height="20" rx="4" fill="#A8A8A8"/>
+          <rect x="100" y="92" width="24" height="26" rx="4" fill="#A8A8A8"/>
+          <rect x="130" y="90" width="26" height="28" rx="4" fill="#A8A8A8"/>
+          <rect x="162" y="90" width="26" height="28" rx="4" fill="#A8A8A8"/>
+          <rect x="194" y="92" width="24" height="26" rx="4" fill="#A8A8A8"/>
+          <rect x="222" y="95" width="22" height="20" rx="4" fill="#A8A8A8"/>
+          <!-- red accent line -->
+          <rect x="20" y="148" width="280" height="3" rx="1.5" fill="#D0021B" opacity="0.5"/>
+        </svg>
+        <p class="product-visual-caption">Your impression. Your guard.</p>
+      </div>
+    </div>
+
+    <div class="product-info">
+      <p class="product-eyebrow">Custom pro-fit mouthguard · Handcrafted in Irvine, CA</p>
+      <h1 class="product-name">The Peak Guard</h1>
+      <div class="product-price">From $105</div>
+      <p class="product-price-note">+ $8.95 flat shipping (USPS, both ways) · Fabricated in Irvine, CA</p>
+      <p class="product-desc">Made from YOUR exact dental impression — not boil-and-bite. Professional quality without the dental office price. Upper and lower trays, 5 minutes at home, finished in 3–5 business days.</p>
+
+      <div class="process-mini">
+        <p class="process-mini-title">What happens after you order</p>
+        <div class="process-steps">
+          <div class="process-step-row">
+            <span class="ps-num">01</span>
+            <div class="ps-text"><strong>Kit ships within 24 hours</strong><span>Everything included — trays, putty, instructions, return envelope</span></div>
+          </div>
+          <div class="process-step-row">
+            <span class="ps-num">02</span>
+            <div class="ps-text"><strong>Take your impression</strong><span>5 minutes at home, full instructions included</span></div>
+          </div>
+          <div class="process-step-row">
+            <span class="ps-num">03</span>
+            <div class="ps-text"><strong>Mail it back</strong><span>Prepaid return envelope is inside your kit</span></div>
+          </div>
+          <div class="process-step-row">
+            <span class="ps-num">04</span>
+            <div class="ps-text"><strong>Guard fabricated and shipped</strong><span>Finished within 3–5 business days of receiving your impression</span></div>
+          </div>
+        </div>
+      </div>
+
+      <form class="order-form" onsubmit="handleOrder(event)">
+
+        <!-- GUARD OPTION -->
+        <div class="form-section-label">Choose your option</div>
+        <div class="option-cards">
+          <label class="option-card selected" id="opt-standard" onclick="selectOption('standard')">
+            <input type="radio" name="option" value="standard" checked style="display:none">
+            <div class="option-card-top">
+              <span class="option-name">Standard</span>
+              <span class="option-price">$105</span>
+            </div>
+            <div class="option-desc">Custom fit from your dental impression. Choose your colour. BPA-free.</div>
+          </label>
+          <label class="option-card" id="opt-logo" onclick="selectOption('logo')">
+            <input type="radio" name="option" value="logo" style="display:none">
+            <div class="option-card-top">
+              <span class="option-name">+ Custom logo</span>
+              <span class="option-price">$120</span>
+            </div>
+            <div class="option-desc">Everything in Standard plus your team logo, name, or design applied to the guard. Upload JPG or PNG at checkout.</div>
+          </label>
+        </div>
+
+        <!-- COLOR SELECTOR -->
+        <div class="form-section-label" style="margin-top:20px;">Guard colour</div>
+        <div class="color-options">
+          <label class="color-opt selected" id="col-clear" onclick="selectColor('clear', this)">
+            <input type="radio" name="color" value="clear" checked style="display:none">
+            <span class="color-swatch" style="background:#E8E8E8;border:1.5px solid #C0C0C0;"></span>
+            <span class="color-label">Clear</span>
+          </label>
+          <label class="color-opt" id="col-yellow" onclick="selectColor('yellow', this)">
+            <input type="radio" name="color" value="yellow" style="display:none">
+            <span class="color-swatch" style="background:#F5C400;border:1.5px solid #C49E00;"></span>
+            <span class="color-label">Yellow</span>
+          </label>
+          <label class="color-opt" id="col-blue" onclick="selectColor('blue', this)">
+            <input type="radio" name="color" value="blue" style="display:none">
+            <span class="color-swatch" style="background:#1E5BAD;border:1.5px solid #143F7A;"></span>
+            <span class="color-label">Blue</span>
+          </label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fname">First name</label>
+            <input type="text" id="fname" placeholder="Jordan" required>
+          </div>
+          <div class="form-group">
+            <label for="lname">Last name</label>
+            <input type="text" id="lname" placeholder="Smith" required>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="jordan@example.com" required>
+        </div>
+        <div class="form-group full">
+          <label for="phone">Phone (optional)</label>
+          <input type="tel" id="phone" placeholder="+1 (555) 000-0000">
+        </div>
+        <div class="form-group full">
+          <label for="sport">Primary sport</label>
+          <select id="sport">
+            <option value="">Select your sport</option>
+            <option>Boxing / MMA</option>
+            <option>Football</option>
+            <option>Rugby</option>
+            <option>Hockey</option>
+            <option>Basketball</option>
+            <option>Lacrosse</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <!-- SHIPPING ADDRESS -->
+        <div class="form-section-label" style="margin-top:24px;">Shipping address <span style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11px;color:var(--grey-text);">— where we send your kit</span></div>
+        <div class="form-group full">
+          <label for="addr1">Address line 1</label>
+          <input type="text" id="addr1" placeholder="123 Main St" required>
+        </div>
+        <div class="form-group full">
+          <label for="addr2">Address line 2 (optional)</label>
+          <input type="text" id="addr2" placeholder="Apt, suite, unit…">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" placeholder="San Diego" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" placeholder="CA" maxlength="2" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="zip">ZIP code</label>
+            <input type="text" id="zip" placeholder="92101" maxlength="10" required>
+          </div>
+          <div class="form-group">
+            <label for="country">Country</label>
+            <select id="country">
+              <option value="US" selected>United States</option>
+              <option value="CA">Canada</option>
+              <option value="GB">United Kingdom</option>
+              <option value="AU">Australia</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- NOTES -->
+        <div class="form-group full">
+          <label for="notes">Notes (optional)</label>
+          <input type="text" id="notes" placeholder="e.g. braces, dental work, colour preference">
+        </div>
+
+        <!-- ORDER SUMMARY -->
+        <div class="order-summary">
+          <div class="summary-row-line">
+            <span id="summary-label">Standard guard</span>
+            <span id="summary-price">$105.00</span>
+          </div>
+          <div class="summary-row-line" style="color:var(--grey-text);font-size:12px;">
+            <span>Shipping (USPS, both ways)</span>
+            <span>$8.95</span>
+          </div>
+          <div class="summary-total">
+            <span>Total</span>
+            <span id="summary-total">$113.95</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="pay-btn">Proceed to payment — $113.95 →</button>
+        <p class="form-note">Secure checkout via Stripe. You'll receive an email with your order ID and tracking link immediately after payment.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- WHAT'S IN THE KIT -->
+  <section class="kit-section">
+    <p class="section-label">What's included</p>
+    <h2 class="section-title">Everything in the box</h2>
+    <div class="kit-grid" style="grid-template-columns:repeat(6,1fr);">
+      <div class="kit-item">
+        <div class="kit-item-name">Impression trays</div>
+        <p class="kit-item-desc">Upper + lower trays included — both arches captured for a true custom fit.</p>
+      </div>
+      <div class="kit-item">
+        <div class="kit-item-name">Putty molding material</div>
+        <p class="kit-item-desc">Professional-grade, BPA-free putty. Safe and tasteless.</p>
+      </div>
+      <div class="kit-item">
+        <div class="kit-item-name">Instruction card</div>
+        <p class="kit-item-desc">Step-by-step guide. Takes 5 minutes. No experience needed.</p>
+      </div>
+      <div class="kit-item">
+        <div class="kit-item-name">Prepaid return envelope</div>
+        <p class="kit-item-desc">USPS return label inside. Seal it up and drop it off — that's it.</p>
+      </div>
+      <div class="kit-item">
+        <div class="kit-item-name">Finished custom guard</div>
+        <p class="kit-item-desc">Fabricated from your exact impression. Shipped within 3–5 business days of receipt.</p>
+      </div>
+      <div class="kit-item">
+        <div class="kit-item-name">Carry case</div>
+        <p class="kit-item-desc">Protective case included with your finished guard.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ORDER STAGE EXPLAINER -->
+  <section class="tracking-section">
+    <p class="section-label">Order tracking</p>
+    <h2 class="section-title">Know exactly where your order is</h2>
+    <div class="track-stages">
+      <div class="track-stage">
+        <div class="track-stage-num">01</div>
+        <div class="track-stage-name">Kit dispatched</div>
+        <p class="track-stage-desc">Shipped within 24 hours of your order.</p>
+      </div>
+      <div class="track-stage">
+        <div class="track-stage-num">02</div>
+        <div class="track-stage-name">Kit delivered</div>
+        <p class="track-stage-desc">You confirm receipt and take your impression.</p>
+      </div>
+      <div class="track-stage">
+        <div class="track-stage-num">03</div>
+        <div class="track-stage-name">Impression received</div>
+        <p class="track-stage-desc">We receive your mold and quality-check it.</p>
+      </div>
+      <div class="track-stage">
+        <div class="track-stage-num">04</div>
+        <div class="track-stage-name">In fabrication</div>
+        <p class="track-stage-desc">Your guard is being handcrafted in Irvine, CA.</p>
+      </div>
+      <div class="track-stage">
+        <div class="track-stage-num">05</div>
+        <div class="track-stage-name">Guard shipped</div>
+        <p class="track-stage-desc">Finished guard on its way. USPS tracking link sent by email.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <a href="index.html" class="footer-logo">PEAK<span>.</span></a>
+  <ul class="footer-links">
+    <li><a href="index.html#how">How it works</a></li>
+    <li><a href="guide.html">Impression guide</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="mailto:hello@peakmouthguards.com">Contact</a></li>
+  </ul>
+  <p class="footer-copy">© 2026 Peak Mouthguards · Irvine, CA</p>
+</footer>
+
+<script>
+const PRICES = { standard: 105, logo: 120 };
+const SHIPPING = 8.95;
+let selectedOption = 'standard';
+let selectedColor = 'clear';
+
+function selectOption(opt) {
+  selectedOption = opt;
+  document.getElementById('opt-standard').classList.toggle('selected', opt === 'standard');
+  document.getElementById('opt-logo').classList.toggle('selected', opt === 'logo');
+  updateSummary();
+}
+
+function selectColor(color, el) {
+  selectedColor = color;
+  document.querySelectorAll('.color-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function updateSummary() {
+  const price = PRICES[selectedOption];
+  const total = (price + SHIPPING).toFixed(2);
+  const label = selectedOption === 'logo' ? 'Custom logo guard' : 'Standard guard';
+  document.getElementById('summary-label').textContent = label;
+  document.getElementById('summary-price').textContent = `$${price}.00`;
+  document.getElementById('summary-total').textContent = `$${total}`;
+  document.getElementById('pay-btn').textContent = `Proceed to payment — $${total} →`;
+}
+
+async function handleOrder(e) {
+  e.preventDefault();
+
+  const btn = document.getElementById('pay-btn');
+  btn.textContent = 'Redirecting to checkout...';
+  btn.disabled = true;
+
+  const payload = {
+    option:     selectedOption,
+    color:      selectedColor,
+    sport:      document.getElementById('sport').value,
+    notes:      document.getElementById('notes').value,
+    first_name: document.getElementById('fname').value,
+    last_name:  document.getElementById('lname').value,
+    email:      document.getElementById('email').value,
+    phone:      document.getElementById('phone').value,
+    addr_line1: document.getElementById('addr1').value,
+    addr_line2: document.getElementById('addr2').value,
+    city:       document.getElementById('city').value,
+    state:      document.getElementById('state').value,
+    zip:        document.getElementById('zip').value,
+    country:    document.getElementById('country').value
+  };
+
+  try {
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error(data.error || 'No checkout URL returned');
+    }
+  } catch (err) {
+    console.error('Checkout error:', err);
+    btn.textContent = `Proceed to payment — $${(PRICES[selectedOption] + SHIPPING).toFixed(2)} →`;
+    btn.disabled = false;
+    alert('Something went wrong starting checkout. Please try again.');
+  }
+}
+</script>
+</body>
+</html>

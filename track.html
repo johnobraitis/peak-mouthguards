@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track your order — Peak Mouthguards</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #D0021B; --red-dark: #A50015;
+    --white: #FFFFFF; --grey-light: #F4F4F4; --grey-mid: #C8C8C8;
+    --grey-text: #6B6B6B; --black: #0A0A0A;
+    --font: 'Arial', Arial, sans-serif;
+  }
+  body { font-family: var(--font); background: var(--grey-light); color: var(--black); min-height: 100vh; }
+
+  nav {
+    background: var(--white); border-bottom: 1px solid #E8E8E8;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px; height: 64px;
+  }
+  .nav-logo { font-size: 17px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+  .nav-logo span { color: var(--red); }
+
+  .page { max-width: 680px; margin: 0 auto; padding: 60px 24px 80px; }
+
+  /* LOOKUP */
+  .lookup-card { background: var(--white); padding: 48px 40px; margin-bottom: 32px; }
+  .lookup-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 12px; }
+  .lookup-title { font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .lookup-sub { font-size: 14px; color: var(--grey-text); line-height: 1.6; margin-bottom: 32px; }
+  .lookup-row { display: flex; gap: 12px; }
+  .lookup-input {
+    flex: 1; padding: 13px 16px; font-size: 14px; font-family: var(--font);
+    border: 1.5px solid var(--grey-mid); outline: none; transition: border-color 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .lookup-input:focus { border-color: var(--black); }
+  .btn-red {
+    background: var(--red); color: var(--white); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase; padding: 13px 28px;
+    border: none; cursor: pointer; transition: background 0.15s; white-space: nowrap;
+  }
+  .btn-red:hover { background: var(--red-dark); }
+  .lookup-error { font-size: 13px; color: var(--red); margin-top: 10px; display: none; }
+
+  /* ORDER RESULT */
+  .order-result { display: none; }
+  .order-header { background: var(--white); padding: 32px 40px; margin-bottom: 2px; }
+  .order-header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 12px; }
+  .order-num { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--grey-text); text-transform: uppercase; }
+  .order-name { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+  .order-meta { font-size: 13px; color: var(--grey-text); margin-top: 4px; }
+  .current-stage-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--black); color: var(--white);
+    padding: 8px 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+
+  /* PROGRESS TRACKER */
+  .tracker-card { background: var(--white); padding: 40px; }
+  .tracker-title { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--grey-text); margin-bottom: 32px; }
+
+  .stage-row {
+    display: flex; align-items: flex-start; gap: 20px;
+    padding: 20px 0; border-bottom: 1px solid #F0F0F0; position: relative;
+  }
+  .stage-row:last-child { border-bottom: none; }
+
+  .stage-indicator { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .stage-circle {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900; flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .stage-circle.done { background: var(--black); color: var(--white); }
+  .stage-circle.current { background: var(--red); color: var(--white); }
+  .stage-circle.pending { background: var(--grey-light); color: var(--grey-mid); border: 2px solid var(--grey-mid); }
+
+  .stage-content { flex: 1; padding-top: 6px; }
+  .stage-row-name {
+    font-size: 15px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--black); margin-bottom: 4px; line-height: 1.1;
+  }
+  .stage-row-name.pending { color: var(--grey-mid); }
+  .stage-row-desc { font-size: 13px; color: var(--grey-text); line-height: 1.6; }
+  .stage-row-desc.pending { color: var(--grey-mid); }
+  .stage-row-date { font-size: 11px; color: var(--grey-text); margin-top: 6px; font-weight: 600; letter-spacing: 0.05em; }
+  .stage-current-callout {
+    background: #FFF5F5; border-left: 3px solid var(--red);
+    padding: 12px 16px; margin-top: 10px;
+    font-size: 13px; color: var(--black); line-height: 1.6;
+  }
+
+  /* HELP */
+  .help-card { background: var(--white); padding: 32px 40px; margin-top: 2px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .help-text { font-size: 14px; color: var(--grey-text); line-height: 1.6; }
+  .help-text strong { color: var(--black); font-weight: 700; display: block; margin-bottom: 4px; }
+  .btn-outline {
+    padding: 11px 24px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; border: 1.5px solid var(--black); background: none;
+    color: var(--black); cursor: pointer; text-decoration: none; display: inline-block;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-outline:hover { background: var(--black); color: var(--white); }
+
+  .stage-action-btn {
+    display: inline-block; margin-top: 14px;
+    background: var(--black); color: var(--white);
+    font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 12px 24px;
+    border: none; cursor: pointer; transition: background 0.15s;
+  }
+  .stage-action-btn:hover { background: var(--red); }
+
+  /* IMPRESSION CONFIRM MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--white); width: 100%; max-width: 480px;
+    margin: 24px; padding: 40px;
+  }
+  .modal-title { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 10px; }
+  .modal-body { font-size: 14px; color: var(--grey-text); line-height: 1.7; margin-bottom: 28px; }
+  .modal-actions { display: flex; gap: 12px; }
+  .btn-black { background: var(--black); color: var(--white); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 24px; border: none; cursor: pointer; transition: background 0.15s; }
+  .btn-black:hover { background: var(--red); }
+  .btn-ghost { background: none; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 20px; border: 1.5px solid var(--grey-mid); cursor: pointer; color: var(--grey-text); transition: all 0.15s; }
+  .btn-ghost:hover { border-color: var(--black); color: var(--black); }
+
+  /* REMAKE / RETURN */
+  .remake-section { background: var(--white); padding: 28px 40px; margin-top: 2px; border-top: 3px solid var(--grey-light); }
+  .remake-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .remake-toggle-label { font-size: 13px; font-weight: 700; color: var(--grey-text); text-transform: uppercase; letter-spacing: 0.1em; }
+  .remake-toggle-link { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); text-decoration: none; cursor: pointer; border-bottom: 1px solid var(--red); padding-bottom: 1px; background: none; border-top: none; border-left: none; border-right: none; }
+  .remake-form-wrap { margin-top: 20px; display: none; }
+  .remake-form { display: flex; flex-direction: column; gap: 12px; }
+  .remake-select, .remake-textarea {
+    width: 100%; padding: 11px 14px; font-size: 13px; font-family: var(--font);
+    border: 1.5px solid var(--grey-mid); outline: none; transition: border-color 0.2s;
+    appearance: none; background: var(--white);
+  }
+  .remake-select:focus, .remake-textarea:focus { border-color: var(--black); }
+  .remake-textarea { resize: vertical; min-height: 90px; }
+  .remake-label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--black); margin-bottom: 4px; display: block; }
+  .submitted-msg { padding: 20px 0; }
+  .submitted-title { font-size: 16px; font-weight: 900; text-transform: uppercase; color: var(--black); margin-bottom: 8px; }
+  .submitted-desc { font-size: 13px; color: var(--grey-text); line-height: 1.6; }
+
+  @media (max-width: 600px) {
+    nav { padding: 0 24px; }
+    .lookup-card, .tracker-card, .order-header, .help-card, .remake-section { padding: 28px 24px; }
+    .lookup-row { flex-direction: column; }
+    .btn-red { width: 100%; text-align: center; }
+    .modal-box { padding: 28px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">PEAK<span>.</span></a>
+  <a href="product.html" style="font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--grey-text);text-decoration:none;">← Back to store</a>
+</nav>
+
+<div class="page">
+
+  <div class="lookup-card">
+    <p class="lookup-eyebrow">Order tracking</p>
+    <h1 class="lookup-title">Where's my order?</h1>
+    <p class="lookup-sub">Enter your order ID from your confirmation email to see exactly where your mouthguard is in the process.</p>
+    <div class="lookup-row">
+      <input class="lookup-input" type="text" id="order-id-input" placeholder="PKM-0000" maxlength="10">
+      <button class="btn-red" onclick="lookupOrder()">Track order</button>
+    </div>
+    <p class="lookup-error" id="lookup-error">We couldn't find that order ID. Check your confirmation email and try again.</p>
+  </div>
+
+  <div class="order-result" id="order-result">
+    <div class="order-header">
+      <div class="order-header-top">
+        <div>
+          <p class="order-num" id="result-id"></p>
+          <h2 class="order-name" id="result-name"></h2>
+          <p class="order-meta" id="result-meta"></p>
+        </div>
+        <span class="current-stage-badge">
+          <span class="badge-dot"></span>
+          <span id="result-stage-label"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="tracker-card">
+      <p class="tracker-title">Order progress</p>
+      <div id="stage-list"></div>
+    </div>
+
+    <div class="help-card">
+      <div class="help-text">
+        <strong>Have a question?</strong>
+        Our team is happy to help. Reach us at <a href="mailto:hello@peakmouthguards.com" style="color:var(--red);text-decoration:none;">hello@peakmouthguards.com</a>
+      </div>
+      <a href="mailto:hello@peakmouthguards.com" class="btn-outline">Contact us</a>
+    </div>
+
+    <!-- REMAKE / RETURN SECTION -->
+    <div class="remake-section" id="remake-section" style="display:none;">
+      <div class="remake-toggle">
+        <span class="remake-toggle-label">Something not right?</span>
+        <button class="remake-toggle-link" onclick="showRemakeForm()">Request a remake or return</button>
+      </div>
+      <div class="remake-form-wrap" id="remake-form-wrap">
+        <form class="remake-form" onsubmit="submitRemake(event)">
+          <div>
+            <label class="remake-label" for="remake-type">Request type</label>
+            <select class="remake-select" id="remake-type" required>
+              <option value="">Select…</option>
+              <option value="remake">Remake — guard doesn't fit correctly</option>
+              <option value="return">Return — I'd like a refund</option>
+              <option value="other">Other issue</option>
+            </select>
+          </div>
+          <div>
+            <label class="remake-label" for="remake-details">Tell us what happened</label>
+            <textarea class="remake-textarea" id="remake-details" placeholder="Describe the issue — e.g. guard is too tight on the left side, or arrived damaged." required></textarea>
+          </div>
+          <button type="submit" class="btn-black">Submit request</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- IMPRESSION CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="impression-modal" onclick="if(event.target===this)closeImpressionModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+    <div class="modal-box">
+      <h2 class="modal-title">Confirm you've sent it back</h2>
+      <p class="modal-body">Once you confirm, we'll mark your impression as on the way and start preparing for fabrication. Make sure your impression is sealed in the return envelope with the pre-paid label attached.</p>
+      <div class="modal-actions">
+        <button class="btn-black" onclick="confirmImpression()">Yes, I've sent it</button>
+        <button class="btn-ghost" onclick="closeImpressionModal()">Not yet</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const STAGES = [
+  {
+    id: 1, name: 'Kit dispatched',
+    desc: 'Your impression kit has been packed and is on its way to you.',
+    currentMsg: 'Your kit is in transit. Keep an eye on your mailbox — it usually arrives within 2–3 business days.',
+    doneMsg: 'Kit delivered'
+  },
+  {
+    id: 2, name: 'Kit delivered',
+    desc: 'Your kit has arrived. Follow the included instructions to take your impression.',
+    currentMsg: 'Your kit should be with you now. Take your impression whenever you\'re ready — the guide inside makes it simple. Once done, drop it in the mail using the pre-paid return envelope.',
+    doneMsg: 'Impression sent back',
+    action: {
+      label: 'I\'ve sent my impression back',
+      confirm: 'confirm-impression'
+    }
+  },
+  {
+    id: 3, name: 'Impression received',
+    desc: 'We\'ve received your mold and quality-checked it.',
+    currentMsg: 'Great — we have your impression and it\'s been checked. Your guard will move into fabrication shortly.',
+    doneMsg: 'Impression verified'
+  },
+  {
+    id: 4, name: 'In fabrication',
+    desc: 'Your custom guard is being made from your exact impression.',
+    currentMsg: 'Your guard is actively being fabricated. This takes 3–5 business days. We\'ll email you the moment it ships.',
+    doneMsg: 'Guard fabricated'
+  },
+  {
+    id: 5, name: 'Guard shipped',
+    desc: 'Your finished guard is on its way to you.',
+    currentMsg: 'Your guard is in the mail! Check your email for a USPS tracking link. Expect delivery within 2–3 business days.',
+    doneMsg: 'Delivered'
+  },
+];
+
+const mockOrders = {
+  'PKM-0041': { name: 'Marcus Reyes',   sport: 'Boxing / MMA', ordered: '2026-06-10', stage: 4 },
+  'PKM-0040': { name: 'Sarah Okafor',   sport: 'Rugby',        ordered: '2026-06-09', stage: 3 },
+  'PKM-0039': { name: 'Tyler Benson',   sport: 'Football',     ordered: '2026-06-08', stage: 3 },
+  'PKM-0038': { name: 'Priya Nair',     sport: 'Hockey',       ordered: '2026-06-07', stage: 2 },
+  'PKM-0037': { name: 'James Kowalski', sport: 'Lacrosse',     ordered: '2026-06-05', stage: 2 },
+  'PKM-0036': { name: 'Aaliyah Monroe', sport: 'Basketball',   ordered: '2026-06-04', stage: 5 },
+  'PKM-0035': { name: 'Devon Park',     sport: 'Football',     ordered: '2026-06-03', stage: 1 },
+  'PKM-0034': { name: 'Chloe Dupont',   sport: 'Boxing / MMA', ordered: '2026-06-01', stage: 5 },
+};
+
+let currentOrderId = null;
+
+function lookupOrder() {
+  const input = document.getElementById('order-id-input').value.trim().toUpperCase();
+  const errorEl = document.getElementById('lookup-error');
+  const resultEl = document.getElementById('order-result');
+  errorEl.style.display = 'none';
+  resultEl.style.display = 'none';
+
+  const order = mockOrders[input];
+  if (!order) { errorEl.style.display = 'block'; return; }
+
+  currentOrderId = input;
+  renderOrder(input, order);
+  resultEl.style.display = 'block';
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderOrder(id, order) {
+  document.getElementById('result-id').textContent = id;
+  document.getElementById('result-name').textContent = order.name + '\'s order';
+  document.getElementById('result-meta').textContent = 'Ordered ' + formatDate(order.ordered) + ' · ' + order.sport;
+  document.getElementById('result-stage-label').textContent = STAGES[order.stage - 1].name;
+
+  const canRequestRemake = order.stage >= 3;
+
+  const stageList = document.getElementById('stage-list');
+  stageList.innerHTML = STAGES.map(s => {
+    const done = s.id < order.stage;
+    const current = s.id === order.stage;
+    const pending = s.id > order.stage;
+    const circleClass = done ? 'done' : current ? 'current' : 'pending';
+    const circleContent = done ? '✓' : s.id;
+    const nameClass = pending ? 'pending' : '';
+    const descClass = pending ? 'pending' : '';
+
+    let actionHtml = '';
+    if (current && s.action) {
+      actionHtml = `<button class="stage-action-btn" onclick="showImpressionConfirm()">${s.action.label} →</button>`;
+    }
+
+    return `
+      <div class="stage-row">
+        <div class="stage-indicator">
+          <div class="stage-circle ${circleClass}">${circleContent}</div>
+        </div>
+        <div class="stage-content">
+          <div class="stage-row-name ${nameClass}">${s.name}</div>
+          <div class="stage-row-desc ${descClass}">${s.desc}</div>
+          ${current ? `<div class="stage-current-callout">${s.currentMsg}</div>` : ''}
+          ${actionHtml}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Remake/return link — only show once impression is back (stage 3+)
+  const remakeEl = document.getElementById('remake-section');
+  if (canRequestRemake) {
+    remakeEl.style.display = 'block';
+  } else {
+    remakeEl.style.display = 'none';
+  }
+}
+
+function showImpressionConfirm() {
+  document.getElementById('impression-modal').style.display = 'flex';
+}
+
+function confirmImpression() {
+  const order = mockOrders[currentOrderId];
+  if (order && order.stage === 2) {
+    order.stage = 3;
+    renderOrder(currentOrderId, order);
+    document.getElementById('result-stage-label').textContent = STAGES[2].name;
+  }
+  closeImpressionModal();
+}
+
+function closeImpressionModal() {
+  document.getElementById('impression-modal').style.display = 'none';
+}
+
+function showRemakeForm() {
+  document.getElementById('remake-form-wrap').style.display = 'block';
+  document.getElementById('remake-form-wrap').scrollIntoView({ behavior: 'smooth' });
+}
+
+function submitRemake(e) {
+  e.preventDefault();
+  document.getElementById('remake-form-wrap').innerHTML = `
+    <div class="submitted-msg">
+      <div class="submitted-title">Request received</div>
+      <p class="submitted-desc">We'll review your request and get back to you within 1 business day at the email on your order.</p>
+    </div>`;
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+document.getElementById('order-id-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') lookupOrder();
+});
+
+const urlParams = new URLSearchParams(window.location.search);
+const prefilledId = urlParams.get('order');
+if (prefilledId) {
+  document.getElementById('order-id-input').value = prefilledId;
+  lookupOrder();
+}
+</script>
+</body>
+</html>
