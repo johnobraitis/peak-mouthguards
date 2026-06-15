@@ -1,166 +1,363 @@
-// lib/email.js
-// Sends transactional emails via Resend (resend.com)
-// Two email types: order confirmation and stage update
-
-const RESEND_API = 'https://api.resend.com/emails';
-const FROM = 'Peak Mouthguards <orders@peakmouthguards.com>';
-
-const STAGE_MESSAGES = {
-  1: {
-    subject: 'Your impression kit is on its way — Peak Mouthguards',
-    body: (name, orderNum) => `
-      <p>Hi ${name},</p>
-      <p>Your impression kit has been packed and is headed your way via USPS. It usually arrives within 2–3 business days.</p>
-      <p>Once it arrives, follow the included instruction card — the whole process takes about 5 minutes.</p>
-      <p>Track your order anytime at:<br>
-      <a href="https://peakmouthguards.com/track.html?order=${orderNum}">peakmouthguards.com/track — ${orderNum}</a></p>
-    `
-  },
-  2: {
-    subject: 'Your kit has arrived — time to take your impression',
-    body: (name, orderNum) => `
-      <p>Hi ${name},</p>
-      <p>Your impression kit should be with you now. When you're ready, follow the instruction card inside — it takes about 5 minutes.</p>
-      <p>Once you've taken your impression, seal it in the prepaid return envelope and drop it at any USPS location.</p>
-      <p>Then confirm you've sent it on your tracking page:<br>
-      <a href="https://peakmouthguards.com/track.html?order=${orderNum}">Track order ${orderNum}</a></p>
-      <p>Need help? Check our <a href="https://peakmouthguards.com/guide.html">step-by-step impression guide</a> or reply to this email.</p>
-    `
-  },
-  3: {
-    subject: "We've received your impression — fabrication starting soon",
-    body: (name, orderNum) => `
-      <p>Hi ${name},</p>
-      <p>Great news — we've received your impression and it's been quality-checked. Your custom guard will move into fabrication shortly.</p>
-      <p>Fabrication takes 3–5 business days. We'll email you again the moment your guard ships.</p>
-      <p><a href="https://peakmouthguards.com/track.html?order=${orderNum}">Track order ${orderNum}</a></p>
-    `
-  },
-  4: {
-    subject: 'Your guard is being made — Peak Mouthguards',
-    body: (name, orderNum) => `
-      <p>Hi ${name},</p>
-      <p>Your custom mouthguard is now in fabrication at our workshop in Irvine, CA. We handcraft every guard from your exact impression.</p>
-      <p>This stage takes 3–5 business days. You'll get a shipping notification with a USPS tracking number as soon as it's done.</p>
-      <p><a href="https://peakmouthguards.com/track.html?order=${orderNum}">Track order ${orderNum}</a></p>
-    `
-  },
-  5: {
-    subject: 'Your Peak guard has shipped!',
-    body: (name, orderNum, tracking) => `
-      <p>Hi ${name},</p>
-      <p>Your custom mouthguard is on its way! Expect delivery within 2–3 business days.</p>
-      ${tracking ? `<p><strong>USPS Tracking:</strong> <a href="https://tools.usps.com/go/TrackConfirmAction?tLabels=${tracking}">${tracking}</a></p>` : ''}
-      <p><a href="https://peakmouthguards.com/track.html?order=${orderNum}">Track order ${orderNum}</a></p>
-      <p>Thanks for choosing Peak Mouthguards. Protect your smile — perform at your peak.</p>
-      <p>— The Peak Team · Irvine, CA</p>
-    `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impression Guide — Peak Mouthguards</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #D0021B; --red-dark: #A50015;
+    --white: #FFFFFF; --grey-light: #F0F0F0; --grey-mid: #C8C8C8;
+    --grey-text: #6B6B6B; --black: #0A0A0A;
+    --font: 'Arial', Arial, sans-serif;
   }
-};
+  body { font-family: var(--font); background: var(--white); color: var(--black); }
 
-async function sendEmail({ to, subject, html }) {
-  const res = await fetch(RESEND_API, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to,
-      subject,
-      html: wrapEmail(html)
-    })
-  });
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px; height: 64px;
+    background: var(--white); border-bottom: 1px solid var(--grey-light);
+  }
+  .nav-logo { font-size: 17px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+  .nav-logo span { color: var(--red); }
+  .nav-links { display: flex; gap: 40px; list-style: none; }
+  .nav-links a { font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--grey-text); text-decoration: none; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--black); }
+  .nav-cta { background: var(--red); color: var(--white) !important; padding: 10px 22px; }
+  .nav-cta:hover { background: var(--red-dark) !important; }
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Resend error: ${err}`);
+  .page { padding-top: 64px; }
+
+  /* PAGE HEADER */
+  .page-header {
+    padding: 72px 48px 56px; border-bottom: 1px solid var(--grey-light);
+    position: relative; overflow: hidden;
+  }
+  .page-header-accent { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; background: var(--red); }
+  .page-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 14px; }
+  .page-title { font-size: clamp(32px, 5vw, 60px); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.95; color: var(--black); max-width: 640px; margin-bottom: 20px; }
+  .page-sub { font-size: 15px; line-height: 1.7; color: var(--grey-text); max-width: 520px; }
+
+  /* BEFORE YOU START */
+  .before-section { padding: 64px 48px; background: var(--grey-light); }
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 12px; }
+  .section-title { font-size: clamp(22px, 3vw, 36px); font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--black); margin-bottom: 32px; }
+
+  .before-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--grey-mid); }
+  .before-item { background: var(--white); padding: 28px 24px; }
+  .before-item-label { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 10px; }
+  .before-item-text { font-size: 14px; line-height: 1.7; color: var(--black); }
+  .before-item-text strong { font-weight: 700; display: block; margin-bottom: 4px; }
+
+  /* STEPS */
+  .steps-section { padding: 64px 48px; max-width: 860px; margin: 0 auto; }
+
+  .step-block { display: grid; grid-template-columns: 80px 1fr; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--grey-light); }
+  .step-block:last-child { border-bottom: none; }
+
+  .step-num-col {
+    padding: 40px 24px 40px 0;
+    display: flex; flex-direction: column; align-items: flex-start;
+  }
+  .step-number {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--red);
+  }
+  .step-line {
+    width: 1px; flex: 1; background: var(--grey-light);
+    margin: 12px 0 0 5px; min-height: 20px;
+  }
+  .step-block:last-child .step-line { display: none; }
+
+  .step-content { padding: 40px 0 40px 32px; border-left: 1px solid var(--grey-light); }
+  .step-title { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; color: var(--black); margin-bottom: 14px; line-height: 1.1; }
+  .step-desc { font-size: 14px; line-height: 1.8; color: var(--grey-text); margin-bottom: 14px; }
+  .step-desc:last-child { margin-bottom: 0; }
+  .step-desc strong { color: var(--black); font-weight: 700; }
+  .step-tip {
+    background: var(--grey-light); border-left: 3px solid var(--red);
+    padding: 12px 16px; margin-top: 16px;
+    font-size: 13px; color: var(--black); line-height: 1.6;
+  }
+  .step-tip strong { font-weight: 700; }
+  .step-warning {
+    background: #FFF8E0; border-left: 3px solid #D4A000;
+    padding: 12px 16px; margin-top: 12px;
+    font-size: 13px; color: #5A4400; line-height: 1.6;
   }
 
-  return res.json();
-}
+  /* WHAT'S IN YOUR KIT */
+  .kit-section { padding: 64px 48px; background: var(--black); }
+  .kit-section .section-label { color: var(--red); }
+  .kit-section .section-title { color: var(--white); }
+  .kit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: #1a1a1a; }
+  .kit-item { background: var(--black); padding: 28px 24px; }
+  .kit-item-name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: var(--white); margin-bottom: 8px; }
+  .kit-item-desc { font-size: 13px; line-height: 1.6; color: #666; }
 
-function wrapEmail(content) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head>
-    <body style="margin:0;padding:0;background:#F4F4F4;font-family:Arial,sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F4;padding:40px 0;">
-        <tr><td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;max-width:600px;width:100%;">
-            <tr>
-              <td style="background:#0A0A0A;padding:20px 32px;">
-                <span style="font-size:20px;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;">
-                  PEAK<span style="color:#D0021B;">.</span>
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:32px;font-size:14px;line-height:1.7;color:#444444;">
-                ${content}
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#F4F4F4;padding:20px 32px;font-size:11px;color:#999999;text-align:center;">
-                Peak Mouthguards · Irvine, CA · <a href="https://peakmouthguards.com" style="color:#D0021B;">peakmouthguards.com</a>
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-      </table>
-    </body>
-    </html>
-  `;
-}
+  /* AFTER SECTION */
+  .after-section { padding: 64px 48px; }
+  .after-steps { display: flex; flex-direction: column; gap: 0; max-width: 640px; }
+  .after-row { display: flex; gap: 20px; align-items: flex-start; padding: 20px 0; border-bottom: 1px solid var(--grey-light); }
+  .after-row:last-child { border-bottom: none; }
+  .after-num { font-size: 11px; font-weight: 700; color: var(--red); letter-spacing: 0.15em; min-width: 28px; padding-top: 2px; }
+  .after-text { font-size: 14px; line-height: 1.7; color: var(--black); }
+  .after-text strong { font-weight: 700; display: block; margin-bottom: 2px; }
+  .after-text span { color: var(--grey-text); font-size: 13px; }
 
-// Sends confirmation email right after purchase
-export async function sendConfirmationEmail({ to, first_name, order_number, option, color, amount_cents, addr_line1, city, state, zip }) {
-  const total = (amount_cents / 100).toFixed(2);
-  const optLabel = option === 'logo' ? 'Custom logo guard' : 'Standard guard';
-  const colorLabel = color.charAt(0).toUpperCase() + color.slice(1);
+  /* CTA */
+  .cta-band { background: var(--red); padding: 60px 48px; display: flex; align-items: center; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+  .cta-band-text { font-size: clamp(20px, 3vw, 36px); font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--white); line-height: 1.05; }
+  .btn-white { background: var(--white); color: var(--red); font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; padding: 16px 32px; border: none; cursor: pointer; text-decoration: none; display: inline-block; white-space: nowrap; transition: background 0.2s, color 0.2s; }
+  .btn-white:hover { background: var(--black); color: var(--white); }
 
-  const html = `
-    <p>Hi ${first_name},</p>
-    <p>Your order is confirmed. We'll ship your impression kit within 24 hours.</p>
-    <table style="width:100%;border-collapse:collapse;margin:20px 0;">
-      <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 0;color:#999;font-size:12px;">Order ID</td><td style="padding:8px 0;font-weight:700;color:#D0021B;font-size:16px;">${order_number}</td></tr>
-      <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 0;color:#999;font-size:12px;">Guard</td><td style="padding:8px 0;">${optLabel} — ${colorLabel}</td></tr>
-      <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 0;color:#999;font-size:12px;">Shipping to</td><td style="padding:8px 0;">${addr_line1}, ${city}, ${state} ${zip}</td></tr>
-      <tr><td style="padding:8px 0;color:#999;font-size:12px;">Total charged</td><td style="padding:8px 0;font-weight:700;">$${total}</td></tr>
-    </table>
-    <p><strong>What happens next:</strong></p>
-    <ol style="padding-left:20px;line-height:2;">
-      <li>Your impression kit ships within 24 hours</li>
-      <li>Take your impression at home (5 minutes, instructions included)</li>
-      <li>Mail it back in the prepaid envelope</li>
-      <li>We fabricate and ship your guard in 3–5 business days</li>
-    </ol>
-    ${option === 'logo' ? `<p><strong>Logo add-on:</strong> Email your JPG or PNG to <a href="mailto:hello@peakmouthguards.com">hello@peakmouthguards.com</a> with subject line <strong>${order_number}</strong>.</p>` : ''}
-    <p style="margin-top:24px;">
-      <a href="https://peakmouthguards.com/track.html?order=${order_number}" 
-         style="background:#D0021B;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;">
-        Track your order →
-      </a>
-    </p>
-  `;
+  footer { background: var(--black); padding: 48px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; border-top: 1px solid #1e1e1e; }
+  .footer-logo { font-size: 15px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .footer-logo span { color: var(--red); }
+  .footer-copy { font-size: 12px; color: #555; }
+  .footer-links { display: flex; gap: 32px; list-style: none; }
+  .footer-links a { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #555; text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--white); }
 
-  return sendEmail({
-    to,
-    subject: `Order confirmed — ${order_number} — Peak Mouthguards`,
-    html
-  });
-}
+  @media (max-width: 768px) {
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    .page-header, .before-section, .steps-section, .kit-section, .after-section { padding: 48px 24px; }
+    .before-grid { grid-template-columns: 1fr; }
+    .kit-grid { grid-template-columns: 1fr 1fr; }
+    .step-block { grid-template-columns: 48px 1fr; }
+    .step-content { padding: 32px 0 32px 20px; }
+    .cta-band { padding: 48px 24px; flex-direction: column; align-items: flex-start; }
+    footer { padding: 36px 24px; flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .kit-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
 
-// Sends stage update email when order advances
-export async function sendStageEmail({ to, first_name, order_number, stage, stage_name, tracking }) {
-  const template = STAGE_MESSAGES[stage];
-  if (!template) return; // No email for unknown stages
+<nav>
+  <a href="index.html" class="nav-logo">PEAK<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html#how">How it works</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="product.html" class="nav-cta">Order now</a></li>
+  </ul>
+</nav>
 
-  return sendEmail({
-    to,
-    subject: template.subject,
-    html:    template.body(first_name, order_number, tracking)
-  });
-}
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-header-accent"></div>
+    <p class="page-eyebrow">Step-by-step impression guide</p>
+    <h1 class="page-title">How to take your impression</h1>
+    <p class="page-sub">The whole process takes about 5 minutes. Read through this once before you start so nothing catches you off guard. Everything you need is already in your kit.</p>
+  </div>
+
+  <!-- BEFORE YOU START -->
+  <section class="before-section">
+    <p class="section-label">Before you begin</p>
+    <h2 class="section-title">Set yourself up for a clean impression</h2>
+    <div class="before-grid">
+      <div class="before-item">
+        <div class="before-item-label">Timing</div>
+        <div class="before-item-text"><strong>Don't eat or drink for 30 minutes beforehand.</strong> Food residue and saliva can affect how the putty sets and seats against your teeth.</div>
+      </div>
+      <div class="before-item">
+        <div class="before-item-label">Setup</div>
+        <div class="before-item-text"><strong>Work over a flat surface with good lighting.</strong> Have a timer ready on your phone. You'll need to move with purpose once the putty is mixed — you have about 60 seconds.</div>
+      </div>
+      <div class="before-item">
+        <div class="before-item-label">What's in the kit</div>
+        <div class="before-item-text"><strong>Upper + lower impression trays, putty material (two parts), instruction card, prepaid return envelope.</strong> Check everything is there before you start.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEPS -->
+  <section class="steps-section">
+    <p class="section-label" style="margin-bottom:12px;">The process</p>
+    <h2 class="section-title">Step by step</h2>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">01</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Wash your hands</div>
+        <p class="step-desc">Wash and dry your hands thoroughly before handling the putty or trays. This keeps the material clean and prevents contamination that can affect the set.</p>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">02</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Try the tray for size</div>
+        <p class="step-desc">Before mixing anything, place the <strong>upper tray</strong> in your mouth dry to check the fit. It should sit comfortably over your upper teeth without pressing into your gums. Do the same with the lower tray.</p>
+        <div class="step-tip"><strong>Good to know:</strong> The trays are designed to fit most adults. If one feels too wide or narrow, note it — the putty will still conform to your teeth once loaded.</div>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">03</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Mix the putty — upper tray</div>
+        <p class="step-desc">Your kit contains two parts of putty material — a base and a catalyst. Take an <strong>equal amount of each</strong> (roughly the same size ball from each container). Knead them together firmly with your fingers until the color is completely uniform with no streaks. This takes about <strong>30 seconds</strong>.</p>
+        <div class="step-warning"><strong>Important:</strong> Once you start mixing, you have approximately 60 seconds before the putty begins to set. Work quickly and confidently once mixing is complete.</div>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">04</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Load the upper tray</div>
+        <p class="step-desc">Roll the mixed putty into a sausage shape and press it evenly into the upper tray. It should fill the tray fully — pushed into the front, sides, and back. <strong>Don't overfill</strong> to the point where it hangs over the edges.</p>
+        <div class="step-tip"><strong>Tip:</strong> Press your thumb along the center ridge of the tray to create a slight groove — this helps the putty seat evenly around your teeth.</div>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">05</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Seat the upper tray</div>
+        <p class="step-desc">Stand in front of a mirror. Hold the loaded tray at both ends and insert it into your mouth, centering it over your upper teeth. Press it firmly and evenly upward until the tray is fully seated. Your upper teeth should sink into the putty.</p>
+        <p class="step-desc"><strong>Hold completely still for 2–3 minutes.</strong> Breathe through your nose. Do not talk, swallow excessively, or move your jaw — any movement will distort the impression.</p>
+        <div class="step-tip"><strong>Timer tip:</strong> Start your phone timer the moment you seat the tray. 2 minutes 30 seconds is the target hold time.</div>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">06</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Remove the upper tray</div>
+        <p class="step-desc">After 2–3 minutes, remove the tray by pressing down on one side to break the seal, then pulling straight down and out in one smooth motion. <strong>Do not wiggle or twist</strong> — this can distort the impression you just captured.</p>
+        <p class="step-desc">Check the impression. You should see clear, sharp detail of each tooth — crowns, gaps, and contours. If anything looks unclear or incomplete, see the troubleshooting note below.</p>
+        <div class="step-tip"><strong>What a good impression looks like:</strong> Clear tooth outlines, no large air bubbles in the biting surface, putty extends slightly past the gum line on all sides.</div>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">07</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Repeat for the lower tray</div>
+        <p class="step-desc">Mix a fresh set of putty for the lower tray using the same process — equal parts, knead until uniform, load the tray, seat it over your lower teeth, and hold for 2–3 minutes.</p>
+        <p class="step-desc">For the lower impression, press the tray firmly downward and hold still. The process is identical to the upper — just in the opposite direction.</p>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">08</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Let the impressions set fully</div>
+        <p class="step-desc">Allow both impressions to sit undisturbed for at least <strong>5 minutes</strong> after removal before packing them. The putty needs time to finish curing. Don't press on the impressions or store them in a warm place.</p>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-num-col">
+        <span class="step-number">09</span>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-title">Pack and mail</div>
+        <p class="step-desc">Place both impression trays carefully in the prepaid return envelope included in your kit. The envelope is rigid enough to protect the impressions in transit. Seal it, affix it to the box, and drop it at any USPS location or mailbox.</p>
+        <p class="step-desc">Once it's in the mail, head to your <a href="track.html" style="color:var(--red);text-decoration:none;border-bottom:1px solid var(--red);">order tracking page</a> and confirm you've sent your impression back — this lets us know it's on the way.</p>
+        <div class="step-tip"><strong>Don't delay:</strong> The sooner you mail it back, the sooner your guard ships. Most customers who mail their impression the same day receive their guard fastest.</div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- TROUBLESHOOTING -->
+  <section style="background:var(--grey-light);padding:64px 48px;">
+    <p class="section-label">Troubleshooting</p>
+    <h2 class="section-title">Common issues and fixes</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--grey-mid);">
+      <div style="background:var(--white);padding:28px 24px;">
+        <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--black);margin-bottom:8px;">Air bubbles in the impression</div>
+        <p style="font-size:13px;line-height:1.7;color:var(--grey-text);">Usually caused by insufficient putty or not pressing the tray firmly enough. If bubbles appear over a tooth surface (not just the edges), contact us before sending it back.</p>
+      </div>
+      <div style="background:var(--white);padding:28px 24px;">
+        <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--black);margin-bottom:8px;">Impression pulled loose when removing</div>
+        <p style="font-size:13px;line-height:1.7;color:var(--grey-text);">This happens if you move your jaw during the hold or remove the tray too early. The impression may still be usable — we'll inspect it on arrival and let you know.</p>
+      </div>
+      <div style="background:var(--white);padding:28px 24px;">
+        <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--black);margin-bottom:8px;">Putty didn't mix evenly</div>
+        <p style="font-size:13px;line-height:1.7;color:var(--grey-text);">If you see streaks of color in the cured putty, the material wasn't fully mixed. Uneven mixing can affect how the guard fits. Contact us and we can arrange a replacement kit.</p>
+      </div>
+      <div style="background:var(--white);padding:28px 24px;">
+        <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--black);margin-bottom:8px;">Not sure if it came out right</div>
+        <p style="font-size:13px;line-height:1.7;color:var(--grey-text);">Email us a photo at <a href="mailto:hello@peakmouthguards.com" style="color:var(--red);text-decoration:none;">hello@peakmouthguards.com</a> with your order ID and we'll take a look before you send it in.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT HAPPENS NEXT -->
+  <section class="after-section">
+    <p class="section-label">After you mail it</p>
+    <h2 class="section-title">What happens next</h2>
+    <div class="after-steps">
+      <div class="after-row">
+        <span class="after-num">01</span>
+        <div class="after-text"><strong>We receive your impression</strong><span>Usually 2–3 business days after you mail it. We quality-check it on arrival.</span></div>
+      </div>
+      <div class="after-row">
+        <span class="after-num">02</span>
+        <div class="after-text"><strong>Fabrication begins</strong><span>Your guard is handcrafted in Irvine, CA from your exact impressions. This takes 3–5 business days.</span></div>
+      </div>
+      <div class="after-row">
+        <span class="after-num">03</span>
+        <div class="after-text"><strong>Your guard ships</strong><span>We'll email you a USPS tracking link when it's on the way. Usually 2–3 business days to your door.</span></div>
+      </div>
+      <div class="after-row">
+        <span class="after-num">04</span>
+        <div class="after-text"><strong>Track your order anytime</strong><span>Check your stage at <a href="track.html" style="color:var(--red);text-decoration:none;">your order tracking page</a> using your order ID from your confirmation email.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-band">
+    <div class="cta-band-text">Ready to get started?</div>
+    <a href="product.html" class="btn-white">Order now — from $105</a>
+  </div>
+
+</div>
+
+<footer>
+  <a href="index.html" class="footer-logo">PEAK<span>.</span></a>
+  <ul class="footer-links">
+    <li><a href="index.html#how">How it works</a></li>
+    <li><a href="faq.html">FAQ</a></li>
+    <li><a href="mailto:hello@peakmouthguards.com">Contact</a></li>
+  </ul>
+  <p class="footer-copy">© 2026 Peak Mouthguards · Irvine, CA</p>
+</footer>
+
+</body>
+</html>
